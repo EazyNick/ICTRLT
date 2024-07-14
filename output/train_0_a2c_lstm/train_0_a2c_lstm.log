@@ -1,4 +1,0 @@
-{"mode": "train", "ver": "v3", "name": "0", "stock_code": "0", "rl_method": "a2c", "net": "lstm", "backend": "pytorch", "start_date": "20180101", "end_date": "20181231", "lr": 0.001, "discount_factor": 0.99, "balance": 100000000}
-[0] RL:a2c NET:lstm LR:0.001 DF:0.99 
-[0][Epoch 0001/1000] Epsilon:1.0000 #Expl.:240/240 #Buy:76 #Sell:68 #Hold:96 #Stocks:40 PV:93,198,031 Loss:0.703681 ET:0.8099
-[0][Epoch 0002/1000] Epsilon:0.9990 #Expl.:240/240 #Buy:85 #Sell:71 #Hold:84 #Stocks:237 PV:94,514,036 Loss:0.721402 ET:1.3060

@@ -1,5 +1,0 @@
-{"mode": "train", "ver": "v3", "name": "005930", "stock_code": "005930", "rl_method": "dqn", "net": "lstm", "backend": "pytorch", "start_date": "20180101", "end_date": "20181231", "lr": 0.001, "discount_factor": 0.99, "balance": 100000000}
-[005930] RL:dqn NET:lstm LR:0.001 DF:0.99 
-[005930][Epoch 0001/1000] Epsilon:1.0000 #Expl.:240/240 #Buy:75 #Sell:58 #Hold:107 #Stocks:1810 PV:90,939,841 Loss:0.004907 ET:1.0621
-[005930][Epoch 0002/1000] Epsilon:0.9990 #Expl.:240/240 #Buy:67 #Sell:61 #Hold:112 #Stocks:439 PV:96,444,947 Loss:0.009641 ET:1.0629
-[005930][Epoch 0003/1000] Epsilon:0.9980 #Expl.:240/240 #Buy:84 #Sell:73 #Hold:83 #Stocks:1040 PV:93,857,923 Loss:0.034016 ET:1.2353
