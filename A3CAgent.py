@@ -89,6 +89,11 @@ class A3CAgent:
             state = torch.from_numpy(state).float()
             policy, _ = self.model(state)
             policy = torch.softmax(policy, dim=-1)
+            
+            # Ensure valid probability distribution
+            policy = policy.clamp(min=1e-10, max=1-1e-10)
+            policy = policy / policy.sum()
+
             m = Categorical(policy)
             action = m.sample()
             # log_manager.logger.debug(f"Policy-based action: {action.item()}")
@@ -229,7 +234,7 @@ def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, optimizer):
             log_manager.logger.info(f'Episode {global_ep.value} completed')
 
 if __name__ == '__main__':
-    log_manager.logger.info("Starting training process")
+    # log_manager.logger.info("Starting training process")
     df = pd.read_csv('data/data_csv/samsung_stock_data.csv')
     env = StockTradingEnv(df)
     global_agent = A3CAgent(env)

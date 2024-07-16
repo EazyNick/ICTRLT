@@ -1,0 +1,7 @@
+[[36m2024-07-16 16:01:33.222][D][Logger.py(_init_logger):73] Logger initialized[0m
+[[36m2024-07-16 16:01:33.222][D][Logger.py(clean_up_logs):88] clean_up_logs[0m
+[[32m2024-07-16 16:01:33.391][I][env.py(__init__):24] StockTradingEnv initialized[0m
+[[32m2024-07-16 16:01:33.393][I][A3CAgent.py(__init__):65] Initializing A3CAgent[0m
+[[32m2024-07-16 16:01:33.394][I][A3CAgent.py(__init__):28] Initializing ActorCritic model[0m
+[[32m2024-07-16 17:13:00.306][I][A3CAgent.py(save_model):167] Model saved to models/a3c_stock_trading_model.pth[0m
+[[32m2024-07-16 17:13:00.307][I][A3CAgent.py(<module>):257] Training process completed[0m
