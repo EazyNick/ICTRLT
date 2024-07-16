@@ -7,12 +7,21 @@ import glob
 import colorlog
 
 class LogManager:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(LogManager, cls).__new__(cls, *args, **kwargs)
+        return cls._instance
+    
     def __init__(self, directory='D:\\ICT_Project\\ICTRLT\\utils\\Log', max_files=10):
-        self.directory = directory
-        self.max_files = max_files
-        self._timestamp = self._init_timestamp()
-        self.logger = self._init_logger()
-        self.clean_up_logs()
+        if not hasattr(self, 'initialized'):  # 이 인스턴스가 초기화되었는지 확인
+            self.directory = directory
+            self.max_files = max_files
+            self._timestamp = self._init_timestamp()
+            self.logger = self._init_logger()
+            self.clean_up_logs()
+            self.initialized = True
 
     def _init_timestamp(self):
         """ 타임스탬프 초기화 """
@@ -21,7 +30,8 @@ class LogManager:
 
     def _init_logger(self):
         """ 로거 초기화 """
-        logger = logging.getLogger('TEST')
+        logger = logging.getLogger('ICTRL')
+
         log_colors_config = {
             'DEBUG': 'cyan',
             'INFO': 'green',

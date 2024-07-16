@@ -2,6 +2,15 @@ import gym
 from gym import spaces
 import numpy as np
 import pandas as pd
+import os
+import sys
+
+try:
+    sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+    from utils import *
+except ImportError:    
+    from utils import *
+
 
 class StockTradingEnv(gym.Env):
     def __init__(self, df):
@@ -12,35 +21,17 @@ class StockTradingEnv(gym.Env):
             df (pd.DataFrame): 주식 데이터프레임
         """
         super(StockTradingEnv, self).__init__()
+        log_manager.logger.info(f"StockTradingEnv initialized")
         self.df = df
         self.current_step = 0
-        self.cash_in_hand = 10000  # 초기 현금
+        self.cash_in_hand = 50000000  # 초기 현금
         self.stock_owned = 0  # 초기 주식 보유량
         self.action_space = spaces.Discrete(3)  # 세 가지 행동: 매수, 매도, 유지
+        log_manager.logger.info(f"Action space: {self.action_space}")
 
-        # low:
-        # 관찰 공간의 각 차원에서 가능한 최솟값을 정의합니다.
-        # low=0은 관찰 공간의 모든 차원의 최솟값이 0임을 의미합니다.
-        # 이 경우, 주식 가격과 현금 잔고가 0 이상임을 나타냅니다.
-
-        # high:
-        # 관찰 공간의 각 차원에서 가능한 최댓값을 정의합니다.
-        # high=np.inf는 관찰 공간의 모든 차원의 최댓값이 무한대임을 의미합니다.
-        # 즉, 주식 가격과 현금 잔고가 이론적으로 무한대까지 증가할 수 있음을 나타냅니다.
-
-        # shape:
-        # 관찰 공간의 차원 수를 정의합니다.
-        # shape=(2,)는 관찰 공간이 2차원 벡터로 구성됨을 의미합니다.
-        # 이 경우, 관찰 공간은 두 개의 요소로 구성됩니다: 주식 가격과 현금 잔고.
-
-        # dtype:
-        # 관찰 공간의 데이터 타입을 정의합니다.
-        # dtype=np.float32는 관찰 공간의 값이 32비트 부동 소수점(실수)으로 저장됨을 의미합니다.
-        # 이는 주식 가격과 현금 잔고가 실수 값으로 표현됨을 나타냅니다.
-        # 에이전트가 관찰할 수 있는 상태 공간, 주식 가격과 현금 잔고를 포함
-        # 에이전트의 공간(low, max를 정의 하는 것), 실제 값 반환은 _next_observation에서 진행
-        # _next_observation 값 범위는 observation_space에서 정의한 값 이내여야 함.
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(2,), dtype=np.float32)  
+        # 관찰 공간 정의
+        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(2,), dtype=np.float32)
+        log_manager.logger.info(f"Observation space: {self.observation_space}")
 
     def reset(self, new_df=None):
         """
@@ -52,21 +43,29 @@ class StockTradingEnv(gym.Env):
         Returns:
             np.ndarray: 초기 관찰값
         """
+        log_manager.logger.info(f"Environment reset start")
         self.current_step = 0
-        self.cash_in_hand = 10000  # 초기 현금
+        self.cash_in_hand = 50000000  # 초기 현금
         self.stock_owned = 0  # 초기 주식 보유량
         if new_df is not None:
             self.df = new_df
-        return self._next_observation()
+            log_manager.logger.info(f"New data frame provided")
+        initial_observation = self._next_observation()
+        log_manager.logger.debug(f"Initial observation: {initial_observation}")
+        return initial_observation
 
     def _next_observation(self):
         """
         현재 주식 가격(df['Close'])과 현금 잔고를 포함한 관찰값을 반환
+        current_step + 1 한 이후에 호출하기 때문에, 다음번 관찰값으로 사용됨
         
         Returns:
             np.ndarray: 현재 관찰값
         """
-        return np.array([self.df['Close'].values[self.current_step], self.cash_in_hand], dtype=np.float32)
+        current_price = self.df['Close'].values[self.current_step]
+        next_observation = np.array([current_price, self.cash_in_hand], dtype=np.float32)
+        # log_manager.logger.debug(f"Next observation: {next_observation}, current_price: {current_price}")
+        return next_observation
 
     def step(self, action):
         """
@@ -78,26 +77,36 @@ class StockTradingEnv(gym.Env):
         Returns:
             tuple: 다음 관찰값, 보상, 에피소드 종료 여부, 추가 정보
         """
-        # 현재 주식 가격을 current_price로 설정
+        # log_manager.logger.info(f"Step {self.current_step}, Action: {action}")
         current_price = self.df['Close'].values[self.current_step]
+        # log_manager.logger.debug(f"Current price: {current_price}")
 
         # 0: 매수, 1: 매도, 2: 관망
         if action == 0:  # 매수
+            log_manager.logger.info(f"Action: Buy")
             self.stock_owned += 1
             self.cash_in_hand -= current_price
         elif action == 1:  # 매도
+            log_manager.logger.info(f"Action: Sell")
             self.stock_owned -= 1
             self.cash_in_hand += current_price
+        else:  # 관망
+            log_manager.logger.debug(f"Action: Hold")
 
-        # 시간 스텝을 1 증가
+        # log_manager.logger.debug(f"Stock owned: {self.stock_owned}, Cash in hand: {self.cash_in_hand}")
+
         self.current_step += 1
-        # done 변수를 설정하여 에피소드가 끝났는지 확인
         done = self.current_step >= len(self.df) - 1
+        if done:
+            log_manager.logger.info(f"Episode finished")
 
-        # 보상(reward)을 계산, 현재 보유한 주식의 총 가치와 현금 잔고의 합계.
         reward = self.stock_owned * current_price + self.cash_in_hand
+        # log_manager.logger.debug(f"Reward: {reward}")
 
-        return self._next_observation(), reward, done, {}
+        next_observation = self._next_observation()
+        # log_manager.logger.debug(f"Next observation: {next_observation}")
+
+        return next_observation, reward, done, {}
 
     def render(self, mode='human', close=False):
         """
@@ -107,9 +116,10 @@ class StockTradingEnv(gym.Env):
             mode (str): 출력 모드. 'human'은 콘솔 출력.
             close (bool): 환경을 닫을지 여부. 기본값은 False.
         """
-        profit = self.stock_owned * self.df['Close'].values[self.current_step] + self.cash_in_hand - 10000
-        
+        profit = self.stock_owned * self.df['Close'].values[self.current_step] + self.cash_in_hand - 50000000
+        # log_manager.logger.info(f"Profit: {profit}")
+
         if mode == 'human':
-            print(f'Step: {self.current_step}, Profit: {profit}')
+            log_manager.logger.info(f'Step: {self.current_step}, Profit: {profit}')
         else:
             raise NotImplementedError(f"Render mode '{mode}' is not supported.")
