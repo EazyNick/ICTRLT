@@ -8,7 +8,7 @@ import sys
 try:
     sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
     from utils import *
-except ImportError:    
+except ImportError:
     from utils import *
 
 
@@ -30,7 +30,8 @@ class StockTradingEnv(gym.Env):
         log_manager.logger.info(f"Action space: {self.action_space}")
 
         # 관찰 공간 정의
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(2,), dtype=np.float32)
+        num_indicators = len([col for col in df.columns if 'SMA' in col])  # 이동평균선의 개수
+        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(num_indicators + 2,), dtype=np.float32)
         log_manager.logger.info(f"Observation space: {self.observation_space}")
 
     def reset(self, new_df=None):
@@ -57,14 +58,14 @@ class StockTradingEnv(gym.Env):
     def _next_observation(self):
         """
         현재 주식 가격(df['Close'])과 현금 잔고를 포함한 관찰값을 반환
-        current_step + 1 한 이후에 호출하기 때문에, 다음번 관찰값으로 사용됨
         
         Returns:
             np.ndarray: 현재 관찰값
         """
+        indicators = self.df.iloc[self.current_step].filter(like='SMA').values
         current_price = self.df['Close'].values[self.current_step]
-        next_observation = np.array([current_price, self.cash_in_hand], dtype=np.float32)
-        # log_manager.logger.debug(f"Next observation: {next_observation}, current_price: {current_price}")
+        next_observation = np.concatenate(([current_price, self.cash_in_hand], indicators)).astype(np.float32)
+        log_manager.logger.debug(f"Next observation: {next_observation}, current_price: {current_price}")
         return next_observation
 
     def step(self, action):
@@ -77,9 +78,9 @@ class StockTradingEnv(gym.Env):
         Returns:
             tuple: 다음 관찰값, 보상, 에피소드 종료 여부, 추가 정보
         """
-        # log_manager.logger.info(f"Step {self.current_step}, Action: {action}")
+        log_manager.logger.info(f"Step {self.current_step}, Action: {action}")
         current_price = self.df['Close'].values[self.current_step]
-        # log_manager.logger.debug(f"Current price: {current_price}")
+        log_manager.logger.debug(f"Current price: {current_price}")
 
         # 0: 매수, 1: 매도, 2: 관망
         if action == 0:  # 매수
@@ -93,7 +94,7 @@ class StockTradingEnv(gym.Env):
         else:  # 관망
             log_manager.logger.debug(f"Action: Hold")
 
-        # log_manager.logger.debug(f"Stock owned: {self.stock_owned}, Cash in hand: {self.cash_in_hand}")
+        log_manager.logger.debug(f"Stock owned: {self.stock_owned}, Cash in hand: {self.cash_in_hand}")
 
         self.current_step += 1
         done = self.current_step >= len(self.df) - 1
@@ -101,10 +102,10 @@ class StockTradingEnv(gym.Env):
             log_manager.logger.info(f"Episode finished")
 
         reward = self.stock_owned * current_price + self.cash_in_hand
-        # log_manager.logger.debug(f"Reward: {reward}")
+        log_manager.logger.debug(f"Reward: {reward}")
 
         next_observation = self._next_observation()
-        # log_manager.logger.debug(f"Next observation: {next_observation}")
+        log_manager.logger.debug(f"Next observation: {next_observation}")
 
         return next_observation, reward, done, {}
 
@@ -117,7 +118,7 @@ class StockTradingEnv(gym.Env):
             close (bool): 환경을 닫을지 여부. 기본값은 False.
         """
         profit = self.stock_owned * self.df['Close'].values[self.current_step] + self.cash_in_hand - 50000000
-        # log_manager.logger.info(f"Profit: {profit}")
+        log_manager.logger.info(f"Profit: {profit}")
 
         if mode == 'human':
             log_manager.logger.info(f'Step: {self.current_step}, Profit: {profit}')
