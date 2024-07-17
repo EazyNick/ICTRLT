@@ -229,6 +229,7 @@ def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, optimizer):
         optimizer.zero_grad()
         update_global_model(global_agent.model, local_agent.model, optimizer)
         
+        # 이 블록 안에 있는 코드는 다른 프로세스에서 동시에 실행되지 않도록 보장(lock)
         with global_ep_lock:
             global_ep.value += 1
             log_manager.logger.info(f'Episode {global_ep.value} completed')
