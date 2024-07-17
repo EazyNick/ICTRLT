@@ -13,7 +13,7 @@ except ImportError:
 
 
 class StockTradingEnv(gym.Env):
-    def __init__(self, df):
+    def __init__(self, df, max_stock=5555):
         """
         주식 데이터프레임 df를 입력으로 받아 환경을 초기화
 
@@ -25,8 +25,10 @@ class StockTradingEnv(gym.Env):
         self.df = df
         self.current_step = 0
         self.cash_in_hand = 50000000  # 초기 현금
-        self.stock_owned = 0  # 초기 주식 보유량
-        self.action_space = spaces.Discrete(3)  # 세 가지 행동: 매수, 매도, 유지
+        self.stock_owned = 0  # 초기 주식 보유량 
+        self.max_stock = max_stock  # 한 번에 매수 또는 매도할 수 있는 최대 주식 수
+        # 행동: 0~(2*max_stock) (매도 0~max_stock, 유지 max_stock, 매수 max_stock+1~2*max_stock)
+        self.action_space = spaces.Discrete(2 * max_stock + 1)
         # log_manager.logger.info(f"Action space: {self.action_space}")
 
         # 관찰 공간 정의
@@ -85,18 +87,36 @@ class StockTradingEnv(gym.Env):
         current_price = self.df['Close'].values[self.current_step]
         # log_manager.logger.debug(f"Current price: {current_price}")
 
-        # 0: 매수, 1: 매도, 2: 관망
-        if action == 0:  # 매수
-            # log_manager.logger.info(f"Action: Buy")
-            self.stock_owned += 1
-            self.cash_in_hand -= current_price
-        elif action == 1 and self.stock_owned > 0:  # 매도 (보유 주식이 있을 때만)
-            # log_manager.logger.info(f"Action: Sell")
-            self.stock_owned -= 1
-            self.cash_in_hand += current_price
-        else:  # 관망
+       # 행동 정의
+        if action < self.max_stock:
+            # 매도
+            num_stocks_to_sell = action
+            if self.stock_owned >= num_stocks_to_sell:
+                self.stock_owned -= num_stocks_to_sell
+                self.cash_in_hand += num_stocks_to_sell * current_price
+                # log_manager.logger.info(f"Action: Sell {num_stocks_to_sell} stocks")
+            else:
+                # 보유 주식이 충분하지 않으면 매도하지 않음
+                num_stocks_to_sell = 0
+                # log_manager.logger.info(f"Action: Sell failed due to insufficient stock")
+
+        elif action == self.max_stock:
+            # 관망
             pass
-            # log_manager.logger.debug(f"Action: Hold")
+            # log_manager.logger.info(f"Action: Hold")
+
+        else:
+            # 매수
+            num_stocks_to_buy = action - self.max_stock
+            cost = num_stocks_to_buy * current_price
+            if self.cash_in_hand >= cost:
+                self.stock_owned += num_stocks_to_buy
+                self.cash_in_hand -= cost
+                # log_manager.logger.info(f"Action: Buy {num_stocks_to_buy} stocks")
+            else:
+                # 현금이 충분하지 않으면 매수하지 않음
+                num_stocks_to_buy = 0
+                # log_manager.logger.info(f"Action: Buy failed due to insufficient cash")
 
         # log_manager.logger.debug(f"Stock owned: {self.stock_owned}, Cash in hand: {self.cash_in_hand}")
 

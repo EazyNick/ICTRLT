@@ -30,13 +30,13 @@ class ActorCritic(nn.Module):
         """
         super(ActorCritic, self).__init__()
         log_manager.logger.info("Initializing ActorCritic model")
-        self.fc = nn.Linear(input_dim, 128)  # 입력층 -> 은닉층
+        self.fc = nn.Linear(input_dim, 256)  # 입력층 -> 은닉층
 
         # 정책 업데이트 (Actor)
-        self.policy = nn.Linear(128, action_space)  # 은닉층 -> 정책 (행동)
+        self.policy = nn.Linear(256, action_space)  # 은닉층 -> 정책 (행동)
 
         # 가치 업데이트 (Critic)
-        self.value = nn.Linear(128, 1)  # 은닉층 -> 가치 (상태 가치)
+        self.value = nn.Linear(256, 1)  # 은닉층 -> 가치 (상태 가치)
 
     def forward(self, x):
         """
@@ -85,33 +85,18 @@ class A3CAgent:
         """
         # 입실론 탐욕 정책 적용
         if random.random() < self.epsilon:
-            if self.env.stock_owned == 0:
-                valid_actions = [0, 2]  # 보유 주식이 0개이면 매도(1)를 제외
-            else:
-                valid_actions = [0, 1, 2]  # 보유 주식이 있으면 모든 행동 허용
-            action = random.choice(valid_actions)  # 유효한 행동 중 무작위 선택
-            log_prob = torch.log(torch.tensor(1.0 / len(valid_actions)))  # 무작위 선택의 로그 확률 (균일 분포 가정)
+            action = random.randint(0, self.env.action_space.n - 1)
+            log_prob = torch.log(torch.tensor(1.0 / self.env.action_space.n))
             return action, log_prob
         else:
             state = torch.from_numpy(state).float()
             policy, _ = self.model(state)
             policy = torch.softmax(policy, dim=-1)
-            
-            # Ensure valid probability distribution
             policy = policy.clamp(min=1e-10, max=1-1e-10)
             policy = policy / policy.sum()
 
             m = Categorical(policy)
             action = m.sample()
-
-            # 유효한 행동만 허용하도록 정책 조정
-            if self.env.stock_owned == 0:
-                policy[1] = 0  # 매도를 제외
-            policy = policy / policy.sum()  # 다시 정규화
-
-            m = Categorical(policy)
-            action = m.sample()
-                
             return action.item(), m.log_prob(action)
 
     def compute_returns(self, rewards, dones, next_value):
@@ -225,7 +210,7 @@ def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, optimizer):
         state = env.reset()
         states, actions, rewards, dones = [], [], [], []
         while True:
-            action, log_prob = local_agent.select_action(state)
+            action, _ = local_agent.select_action(state)
             next_state, reward, done, _ = env.step(action)
 
             states.append(state)
@@ -259,7 +244,7 @@ if __name__ == '__main__':
 
     processes = []
     n_processes = 4
-    n_episodes = 100 // n_processes
+    n_episodes = 20 // n_processes
     for rank in range(n_processes):
         p = mp.Process(target=worker, args=(global_agent, env, n_episodes, global_ep, global_ep_lock, optimizer))
         p.start()
