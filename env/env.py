@@ -30,8 +30,9 @@ class StockTradingEnv(gym.Env):
         # log_manager.logger.info(f"Action space: {self.action_space}")
 
         # 관찰 공간 정의
-        num_indicators = len([col for col in df.columns if 'SMA' in col])  # 이동평균선의 개수
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(num_indicators + 2,), dtype=np.float32)
+        num_sma = len([col for col in df.columns if 'SMA' in col])  # 이동평균선의 개수
+        num_vma = len([col for col in df.columns if 'VMA' in col])
+        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(num_sma + num_vma + 2,), dtype=np.float32)
         # log_manager.logger.info(f"Observation space: {self.observation_space}")
 
     def reset(self, new_df=None):
@@ -44,7 +45,7 @@ class StockTradingEnv(gym.Env):
         Returns:
             np.ndarray: 초기 관찰값
         """
-        log_manager.logger.info(f"Environment reset start")
+        # log_manager.logger.info(f"Environment reset start")
         self.current_step = 0
         self.cash_in_hand = 50000000  # 초기 현금
         self.stock_owned = 0  # 초기 주식 보유량
@@ -52,7 +53,7 @@ class StockTradingEnv(gym.Env):
             self.df = new_df
             log_manager.logger.info(f"New data frame provided")
         initial_observation = self._next_observation()
-        log_manager.logger.debug(f"Initial observation: {initial_observation}")
+        # log_manager.logger.debug(f"Initial observation: {initial_observation}")
         return initial_observation
 
     def _next_observation(self):
@@ -62,9 +63,10 @@ class StockTradingEnv(gym.Env):
         Returns:
             np.ndarray: 현재 관찰값
         """
-        indicators = self.df.iloc[self.current_step].filter(like='SMA').values
+        sma_values = self.df.iloc[self.current_step].filter(like='SMA').values
+        vma_values = self.df.iloc[self.current_step].filter(like='VMA').values
         current_price = self.df['Close'].values[self.current_step]
-        next_observation = np.concatenate(([current_price, self.cash_in_hand], indicators)).astype(np.float32)
+        next_observation = np.concatenate(([current_price, self.cash_in_hand], sma_values, vma_values)).astype(np.float32)
         next_observation = np.nan_to_num(next_observation, nan=0.0)  # NaN 값을 0으로 대체
         # log_manager.logger.debug(f"Next observation: {next_observation}, current_price: {current_price}")
         return next_observation
@@ -85,22 +87,24 @@ class StockTradingEnv(gym.Env):
 
         # 0: 매수, 1: 매도, 2: 관망
         if action == 0:  # 매수
-            log_manager.logger.info(f"Action: Buy")
+            # log_manager.logger.info(f"Action: Buy")
             self.stock_owned += 1
             self.cash_in_hand -= current_price
         elif action == 1 and self.stock_owned > 0:  # 매도 (보유 주식이 있을 때만)
-            log_manager.logger.info(f"Action: Sell")
+            # log_manager.logger.info(f"Action: Sell")
             self.stock_owned -= 1
             self.cash_in_hand += current_price
         else:  # 관망
-            log_manager.logger.debug(f"Action: Hold")
+            pass
+            # log_manager.logger.debug(f"Action: Hold")
 
         # log_manager.logger.debug(f"Stock owned: {self.stock_owned}, Cash in hand: {self.cash_in_hand}")
 
         self.current_step += 1
         done = self.current_step >= len(self.df) - 1
-        if done:
-            log_manager.logger.info(f"Episode finished")
+        # log_manager.logger.debug(f"done {done}")
+        # if done:
+        #     log_manager.logger.info(f"Episode finished")
 
         reward = self.stock_owned * current_price + self.cash_in_hand
         # log_manager.logger.debug(f"Reward: {reward}")

@@ -23,6 +23,10 @@ class ActorCritic(nn.Module):
         Args:
             input_dim (int): 입력 차원
             action_space (int): 행동 공간의 크기
+
+        [입력층]                [은닉층]                  [출력층]
+        (input_dim)  ->   (128개의 은닉 노드)  ->  (policy: action_space) 
+                                              ->  (value: 1)
         """
         super(ActorCritic, self).__init__()
         log_manager.logger.info("Initializing ActorCritic model")
@@ -81,9 +85,12 @@ class A3CAgent:
         """
         # 입실론 탐욕 정책 적용
         if random.random() < self.epsilon:
-            action = self.env.action_space.sample()  # 무작위 행동 선택
-            log_prob = torch.tensor(1.0 / self.env.action_space.n)  # 무작위 선택의 로그 확률 (균일 분포 가정)
-            log_manager.logger.debug(f"Epsilon-greedy action: {action}")
+            if self.env.stock_owned == 0:
+                valid_actions = [0, 2]  # 보유 주식이 0개이면 매도(1)를 제외
+            else:
+                valid_actions = [0, 1, 2]  # 보유 주식이 있으면 모든 행동 허용
+            action = random.choice(valid_actions)  # 유효한 행동 중 무작위 선택
+            log_prob = torch.log(torch.tensor(1.0 / len(valid_actions)))  # 무작위 선택의 로그 확률 (균일 분포 가정)
             return action, log_prob
         else:
             state = torch.from_numpy(state).float()
@@ -96,7 +103,15 @@ class A3CAgent:
 
             m = Categorical(policy)
             action = m.sample()
-            # log_manager.logger.debug(f"Policy-based action: {action.item()}")
+
+            # 유효한 행동만 허용하도록 정책 조정
+            if self.env.stock_owned == 0:
+                policy[1] = 0  # 매도를 제외
+            policy = policy / policy.sum()  # 다시 정규화
+
+            m = Categorical(policy)
+            action = m.sample()
+                
             return action.item(), m.log_prob(action)
 
     def compute_returns(self, rewards, dones, next_value):
@@ -244,7 +259,7 @@ if __name__ == '__main__':
 
     processes = []
     n_processes = 4
-    n_episodes = 1000 // n_processes
+    n_episodes = 100 // n_processes
     for rank in range(n_processes):
         p = mp.Process(target=worker, args=(global_agent, env, n_episodes, global_ep, global_ep_lock, optimizer))
         p.start()
