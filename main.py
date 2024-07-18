@@ -1,17 +1,12 @@
 import torch
 import pandas as pd
-from A3CAgent import A3CAgent  # A3CAgent 클래스 불러오기
+from Agent.A3CAgent import A3CAgent  # A3CAgent 클래스 불러오기
 from env.env import StockTradingEnv
 import sys
 import os
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
-
-try:
-    sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
-    from utils import *
-except ImportError:
-    from utils import *
+from utils import *
 
 # 저장된 모델을 로드하고 새 데이터를 기반으로 매수, 매도를 수행하는 함수
 def run_trading(agent, env, new_data):
