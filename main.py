@@ -1,9 +1,6 @@
-import torch
 import pandas as pd
 from Agent.A3CAgent import A3CAgent  # A3CAgent 클래스 불러오기
 from env.env import StockTradingEnv
-import sys
-import os
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from utils import *

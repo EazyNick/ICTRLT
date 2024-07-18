@@ -13,7 +13,7 @@ except ImportError:
 
 
 class StockTradingEnv(gym.Env):
-    def __init__(self, df, max_stock=5555):
+    def __init__(self, df, max_stock=5555, trading_charge=0.00015, trading_tax=0.002):
         """
         주식 데이터프레임 df를 입력으로 받아 환경을 초기화
 
@@ -27,6 +27,9 @@ class StockTradingEnv(gym.Env):
         self.cash_in_hand = 50000000  # 초기 현금
         self.stock_owned = 0  # 초기 주식 보유량 
         self.max_stock = max_stock  # 한 번에 매수 또는 매도할 수 있는 최대 주식 수
+        self.trading_charge = trading_charge  # 거래 수수료
+        self.trading_tax = trading_tax  # 거래세
+
         # 행동: 0~(2*max_stock) (매도 0~max_stock, 유지 max_stock, 매수 max_stock+1~2*max_stock)
         self.action_space = spaces.Discrete(2 * max_stock + 1)
         # log_manager.logger.info(f"Action space: {self.action_space}")
@@ -88,27 +91,25 @@ class StockTradingEnv(gym.Env):
         # log_manager.logger.debug(f"Current price: {current_price}")
 
        # 행동 정의
+        # 매도
         if action < self.max_stock:
-            # 매도
             num_stocks_to_sell = action
             if self.stock_owned >= num_stocks_to_sell:
                 self.stock_owned -= num_stocks_to_sell
-                self.cash_in_hand += num_stocks_to_sell * current_price
+                self.cash_in_hand += num_stocks_to_sell * current_price * (1 - self.trading_charge - self.trading_tax)
                 # log_manager.logger.info(f"Action: Sell {num_stocks_to_sell} stocks")
             else:
                 # 보유 주식이 충분하지 않으면 매도하지 않음
                 num_stocks_to_sell = 0
                 # log_manager.logger.info(f"Action: Sell failed due to insufficient stock")
-
+        # 관망
         elif action == self.max_stock:
-            # 관망
             pass
             # log_manager.logger.info(f"Action: Hold")
-
+        # 매수
         else:
-            # 매수
             num_stocks_to_buy = action - self.max_stock
-            cost = num_stocks_to_buy * current_price
+            cost = num_stocks_to_buy * current_price * (1 + self.trading_charge)
             if self.cash_in_hand >= cost:
                 self.stock_owned += num_stocks_to_buy
                 self.cash_in_hand -= cost
