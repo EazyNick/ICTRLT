@@ -30,10 +30,10 @@ To set up the environment, follow these steps:
    git clone https://github.com/yourusername/ICTRLT.git
    cd ICTRLT
 
-2. Install dependencies:
+2. **Install dependencies**:
 ```bash
  pip install -r requirements.txt
 ```
 
-3. Google Drive Integration:
+3. **Google Drive Integration**:
 This project uses Google Colab for training. Ensure you have Google Drive mounted in your Colab environment.
