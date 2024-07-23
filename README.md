@@ -31,6 +31,7 @@ To set up the environment, follow these steps:
    cd stock-trading-a3c
 
 2. Install dependencies:
+```bash
  pip install -r requirements.txt
 
 
