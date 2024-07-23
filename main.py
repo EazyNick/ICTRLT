@@ -33,7 +33,7 @@ def run_trading(agent, env, new_data):
 if __name__ == '__main__':
     log_manager.logger.info("Starting trading process")
     # 모델 로드
-    model_path = 'models/a3c_stock_trading_model.pth'
+    model_path = 'output/a3c_stock_trading_model.pth'
     df = pd.read_csv('data/data_csv/samsung_stock_data.csv', index_col='Date', parse_dates=True)  # 주식 데이터 로드
     env = StockTradingEnv(df)  # 환경 생성
     agent = A3CAgent(env)  # 에이전트 생성
