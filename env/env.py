@@ -40,6 +40,9 @@ class StockTradingEnv(gym.Env):
         self.observation_space = spaces.Box(low=0, high=np.inf, shape=(num_sma + num_vma + 2,), dtype=np.float32)
         # log_manager.logger.info(f"Observation space: {self.observation_space}")
 
+        # 매수/매도 기록을 위한 리스트 초기화
+        self.buy_sell_log = []
+
     def reset(self, new_df=None):
         """
         환경을 초기 상태로 재설정
@@ -59,6 +62,7 @@ class StockTradingEnv(gym.Env):
             log_manager.logger.info(f"New data frame provided")
         initial_observation = self._next_observation()
         # log_manager.logger.debug(f"Initial observation: {initial_observation}")
+        self.buy_sell_log = []  # 매수/매도 기록 초기화
         return initial_observation
 
     def _next_observation(self):
@@ -98,6 +102,7 @@ class StockTradingEnv(gym.Env):
                 self.stock_owned -= num_stocks_to_sell
                 self.cash_in_hand += num_stocks_to_sell * current_price * (1 - self.trading_charge - self.trading_tax)
                 # log_manager.logger.info(f"Action: Sell {num_stocks_to_sell} stocks")
+                self.buy_sell_log.append((self.df.index[self.current_step], 'sell', num_stocks_to_sell, current_price))
             else:
                 # 보유 주식이 충분하지 않으면 매도하지 않음
                 num_stocks_to_sell = 0
@@ -114,6 +119,7 @@ class StockTradingEnv(gym.Env):
                 self.stock_owned += num_stocks_to_buy
                 self.cash_in_hand -= cost
                 # log_manager.logger.info(f"Action: Buy {num_stocks_to_buy} stocks")
+                self.buy_sell_log.append((self.df.index[self.current_step], 'buy', num_stocks_to_buy, current_price))
             else:
                 # 현금이 충분하지 않으면 매수하지 않음
                 num_stocks_to_buy = 0
