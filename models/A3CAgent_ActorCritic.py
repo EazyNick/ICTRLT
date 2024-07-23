@@ -6,6 +6,8 @@ class ActorCritic(nn.Module):
     def __init__(self, input_dim, action_space):
         """
         Actor-Critic 모델 초기화
+        정책 그라디언트 방법과 TD 방법을 결합한 Actor-Critic 구조
+        A3C에서 사용
 
         Args:
             input_dim (int): 입력 차원

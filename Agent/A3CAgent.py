@@ -62,6 +62,7 @@ class A3CAgent:
     def compute_returns(self, rewards, dones, next_value):
         """
         주어진 보상과 에피소드 종료 여부 리스트, 그리고 다음 상태의 가치를 이용하여 반환값을 계산
+        Temporal Difference (TD) - 스텝마다 업데이트
 
         Args:
             rewards (list): 보상 리스트
@@ -106,6 +107,7 @@ class A3CAgent:
         returns = torch.tensor(returns).float()
         log_probs = torch.stack(log_probs)
 
+        # Advantage는 특정 행동의 보상이 평균 보상보다 얼마나 좋은지를 나타냅니다.
         advantage = returns - values.squeeze()
 
         policy_loss = -(log_probs * advantage.detach()).mean()
