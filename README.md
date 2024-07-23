@@ -27,8 +27,8 @@ To set up the environment, follow these steps:
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/stock-trading-a3c.git
-   cd stock-trading-a3c
+   git clone https://github.com/yourusername/ICTRLT.git
+   cd ICTRLT
 
 2. Install dependencies:
 ```bash
