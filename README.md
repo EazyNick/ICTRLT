@@ -35,5 +35,5 @@ To set up the environment, follow these steps:
  pip install -r requirements.txt
 ```
 
-3. **Google Drive Integration**:
+3. **Google Drive Integration**: <br>
 This project uses Google Colab for training. Ensure you have Google Drive mounted in your Colab environment.
