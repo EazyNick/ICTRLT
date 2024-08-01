@@ -4,6 +4,7 @@ from env.env import StockTradingEnv
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from utils import *
+from pathlib import Path
 
 # 저장된 모델을 로드하고 새 데이터를 기반으로 매수, 매도를 수행하는 함수
 def run_trading(agent, env, new_data):
@@ -30,16 +31,16 @@ def run_trading(agent, env, new_data):
     
     return account_values, stock_prices, dates, env.buy_sell_log
 
-def plot_trading_results(dates, account_values, stock_prices, buy_sell_log):
+def plot_trading_results(dates, account_values, stock_prices, buy_sell_log, save_path='output/trading_results.png'):
     fig, ax1 = plt.subplots(figsize=(12, 6))
 
     ax1.plot(dates, account_values, label='Account Value', color='b')
     ax1.set_xlabel('Date')
-    ax1.set_ylabel('Account Value (원)', color='b')
+    ax1.set_ylabel('Account Value', color='b')
 
     ax2 = ax1.twinx()
     ax2.plot(dates, stock_prices, label='Stock Price', color='orange', linestyle='--')
-    ax2.set_ylabel('Stock Price (원)', color='orange')
+    ax2.set_ylabel('Stock Price', color='orange')
 
     for log in buy_sell_log:
         date, action, num_stocks, price = log
@@ -57,17 +58,32 @@ def plot_trading_results(dates, account_values, stock_prices, buy_sell_log):
 
     plt.show()
 
-if __name__ == '__main__':
-    log_manager.logger.info("Starting trading process")
+    # 이미지 파일로 저장
+    plt.savefig(save_path)
+    plt.close()
+    log_manager.logger.info(f"Trading results saved as {save_path}")
+
+def main_run():
+    # log_manager.logger.info("Starting trading process")
+
     # 모델 로드
-    model_path = 'output/a3c_stock_trading_model.pth'
-    df = pd.read_csv('data/data_csv/samsung_stock_data.csv', index_col='Date', parse_dates=True)  # 주식 데이터 로드
+    model_path = Path(__file__).resolve().parent / 'output/a3c_stock_trading_model.pth'
+    file_path = Path(__file__).resolve().parent / 'data/data_csv/kia_stock_data.csv'
+    df = pd.read_csv(file_path, index_col='Date', parse_dates=True)  # 주식 데이터 로드
     env = StockTradingEnv(df)  # 환경 생성
     agent = A3CAgent(env)  # 에이전트 생성
     agent.load_model(model_path)  # 학습된 모델 로드
 
     # 새 데이터를 기반으로 거래 수행
-    new_data = pd.read_csv('data/data_csv/samsung_stock_data.csv', index_col='Date', parse_dates=True)  # 새로운 주식 데이터 로드
+    new_data = pd.read_csv(Path(__file__).resolve().parent / 'data/data_csv/kia_stock_testdata.csv', index_col='Date', parse_dates=True)  # 새로운 주식 데이터 로드
     account_values, stock_prices, dates, buy_sell_log = run_trading(agent, env, new_data)
 
+    # 거래 결과 플롯 및 저장
     plot_trading_results(dates, account_values, stock_prices, buy_sell_log)
+
+    return buy_sell_log
+
+if __name__ == '__main__':
+    buy_sell_log = main_run()
+    print(f"Buy dates: {buy_sell_log}")
+    log_manager.logger.info(f"Buy dates: {buy_sell_log}")
