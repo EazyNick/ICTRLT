@@ -13,7 +13,8 @@ except ImportError:
 
 
 class StockTradingEnv(gym.Env):
-    def __init__(self, df, max_stock=5555, trading_charge=0.00015, trading_tax=0.002):
+    # 기아, sk하이닉스는 120, 삼성전자는 120주
+    def __init__(self, df, max_stock=120, trading_charge=0.00015, trading_tax=0.002):
         """
         주식 데이터프레임 df를 입력으로 받아 환경을 초기화
 
@@ -24,7 +25,7 @@ class StockTradingEnv(gym.Env):
         log_manager.logger.info(f"StockTradingEnv initialized")
         self.df = df
         self.current_step = 0
-        self.cash_in_hand = 50000000  # 초기 현금
+        self.cash_in_hand = 10000000  # 초기 현금
         self.stock_owned = 0  # 초기 주식 보유량 
         self.max_stock = max_stock  # 한 번에 매수 또는 매도할 수 있는 최대 주식 수
         self.trading_charge = trading_charge  # 거래 수수료
@@ -55,7 +56,7 @@ class StockTradingEnv(gym.Env):
         """
         # log_manager.logger.info(f"Environment reset start")
         self.current_step = 0
-        self.cash_in_hand = 50000000  # 초기 현금
+        self.cash_in_hand = 10000000  # 초기 현금
         self.stock_owned = 0  # 초기 주식 보유량
         if new_df is not None:
             self.df = new_df
@@ -149,7 +150,7 @@ class StockTradingEnv(gym.Env):
             mode (str): 출력 모드. 'human'은 콘솔 출력.
             close (bool): 환경을 닫을지 여부. 기본값은 False.
         """
-        profit = self.stock_owned * self.df['Close'].values[self.current_step] + self.cash_in_hand - 50000000
+        profit = self.stock_owned * self.df['Close'].values[self.current_step] + self.cash_in_hand - 10000000
         # log_manager.logger.info(f"Profit: {profit}")
 
         if mode == 'human':
