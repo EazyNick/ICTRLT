@@ -32,6 +32,9 @@ def run_trading(agent, env, new_data):
     return account_values, stock_prices, dates, env.buy_sell_log
 
 def plot_trading_results(dates, account_values, stock_prices, buy_sell_log, save_path='output/trading_results.png'):
+    """
+    주가 vs 포트폴리오 가치
+    """
     # 전역 글자 크기 설정 (옵션)
     plt.rcParams.update({'font.size': 14})
 
