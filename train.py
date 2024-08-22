@@ -4,8 +4,36 @@ import pandas as pd
 from Agent import A3CAgent, update_global_model
 from env import StockTradingEnv
 from utils import *
+import numpy as np
+import random
 
-def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, optimizer):
+# 시드값 설정 함수
+def set_seeds(random_seed=None, numpy_seed=None, torch_seed=None):
+    """
+    모든 난수 생성기의 시드값을 각각 설정하여 일관된 결과를 생성합니다.
+
+    Args:
+        random_seed (int, optional): Python random 모듈의 시드값
+        numpy_seed (int, optional): NumPy 모듈의 시드값
+        torch_seed (int, optional): PyTorch 모듈의 시드값
+    """
+    if random_seed is not None:
+        random.seed(random_seed)
+
+    if numpy_seed is not None:
+        np.random.seed(numpy_seed)
+
+    if torch_seed is not None:
+        torch.manual_seed(torch_seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(torch_seed)
+
+# 시드값 설정 (각각의 시드값을 다르게 설정)
+random_seed_value = 42
+numpy_seed_value = 2023
+torch_seed_value = 1234
+
+def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, optimizer, process_id):
     """
     학습 작업자 함수
 
@@ -16,7 +44,13 @@ def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, optimizer):
         global_ep (mp.Value): 글로벌 에피소드 카운터
         global_ep_lock (mp.Lock): 에피소드 카운터 잠금
         optimizer (optim.Optimizer): 글로벌 모델의 옵티마이저
+        process_id (int): 프로세스 ID를 기반으로 시드값을 다르게 설정
     """
+    # 각 프로세스에 고유한 시드값 설정
+    set_seeds(random_seed=random_seed_value + process_id,
+              numpy_seed=numpy_seed_value + process_id,
+              torch_seed=torch_seed_value + process_id)
+
     local_agent = A3CAgent(env)
     for _ in range(n_episodes):
         state = env.reset()
@@ -46,8 +80,6 @@ def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, optimizer):
             global_ep.value += 1
             log_manager.logger.info(f'Episode {global_ep.value} completed')
 
-# --------------------------------------------------------------------------------------------------------
-# --------------------------------------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------
 # 모델 학습 시작과 관련된 코드
 
@@ -92,7 +124,7 @@ def start_training(global_agent, env, n_processes=4, n_episodes=8):
     processes = []
     episodes_per_process = n_episodes // n_processes
     for process_num in range(n_processes):
-        p = mp.Process(target=worker, args=(global_agent, env, episodes_per_process, global_ep, global_ep_lock, optimizer))
+        p = mp.Process(target=worker, args=(global_agent, env, episodes_per_process, global_ep, global_ep_lock, optimizer, process_num))
         p.start()
         processes.append(p)
 

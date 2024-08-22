@@ -1,3 +1,4 @@
+import torch
 import pandas as pd
 from Agent.A3CAgent import A3CAgent  # A3CAgent 클래스 불러오기
 from env.env import StockTradingEnv
@@ -5,9 +6,40 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from utils import *
 from pathlib import Path
+import numpy as np
+import random
+
+# 시드값 설정 함수
+def set_seeds(random_seed=None, numpy_seed=None, torch_seed=None):
+    """
+    모든 난수 생성기의 시드값을 각각 설정하여 일관된 결과를 생성합니다.
+
+    Args:
+        random_seed (int, optional): Python random 모듈의 시드값
+        numpy_seed (int, optional): NumPy 모듈의 시드값
+        torch_seed (int, optional): PyTorch 모듈의 시드값
+    """
+    if random_seed is not None:
+        random.seed(random_seed)
+
+    if numpy_seed is not None:
+        np.random.seed(numpy_seed)
+
+    if torch_seed is not None:
+        torch.manual_seed(torch_seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(torch_seed)
+
+# 시드값 설정 (각각의 시드값을 다르게 설정)
+random_seed_value = 42
+numpy_seed_value = 2023
+torch_seed_value = 1234
 
 # 저장된 모델을 로드하고 새 데이터를 기반으로 매수, 매도를 수행하는 함수
-def run_trading(agent, env, new_data):
+def run_trading(agent, env, new_data, base_seed=42, process_id=0):
+    # 시드값 설정
+    set_seeds(random_seed=base_seed + process_id, numpy_seed=base_seed + process_id, torch_seed=base_seed + process_id)
+
     state = env.reset(new_df=new_data)  # 새로운 데이터를 사용하여 환경 초기화
     done = False
     account_values = []  # 계좌 잔고 기록
@@ -143,7 +175,7 @@ def main_run():
 
     # 새 데이터를 기반으로 거래 수행
     new_data = pd.read_csv(Path(__file__).resolve().parent / 'data/data_csv/Samsung_stock_testdata.csv', index_col='Date', parse_dates=True)  # 새로운 주식 데이터 로드
-    account_values, stock_prices, dates, buy_sell_log = run_trading(agent, env, new_data)
+    account_values, stock_prices, dates, buy_sell_log = run_trading(agent, env, new_data, base_seed=random_seed_value, process_id=0)
 
     # 코스피 지수 수익률% vs 모델 수익률%
     # 기아차 데이터로 모델의 수익률 계산
