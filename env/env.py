@@ -38,8 +38,10 @@ class StockTradingEnv(gym.Env):
         # 관찰 공간 정의
         num_sma = len([col for col in df.columns if 'SMA' in col])  # 이동평균선의 개수
         num_vma = len([col for col in df.columns if 'VMA' in col])
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(num_sma + num_vma + 2,), dtype=np.float32)
-        # log_manager.logger.info(f"Observation space: {self.observation_space}")
+        num_high = len([col for col in df.columns if 'High' in col])
+        num_low = len([col for col in df.columns if 'Low' in col])
+        # 잔고, 주식 보유량을 포함한 관찰 공간 정의
+        self.observation_space = gym.spaces.Box(low=0, high=np.inf, shape=(2 + num_sma + num_vma + num_high + num_low + 1,), dtype=np.float32)
 
         # 매수/매도 기록을 위한 리스트 초기화
         self.buy_sell_log = []
@@ -75,8 +77,10 @@ class StockTradingEnv(gym.Env):
         """
         sma_values = self.df.iloc[self.current_step].filter(like='SMA').values
         vma_values = self.df.iloc[self.current_step].filter(like='VMA').values
+        high_values = self.df.iloc[self.current_step].filter(like='High').values
+        low_values = self.df.iloc[self.current_step].filter(like='Low').values
         current_price = self.df['Close'].values[self.current_step]
-        next_observation = np.concatenate(([current_price, self.cash_in_hand], sma_values, vma_values)).astype(np.float32)
+        next_observation = np.concatenate(([current_price, self.cash_in_hand, self.stock_owned], sma_values, vma_values, high_values, low_values)).astype(np.float32)
         next_observation = np.nan_to_num(next_observation, nan=0.0)  # NaN 값을 0으로 대체
         # log_manager.logger.debug(f"Next observation: {next_observation}, current_price: {current_price}")
         return next_observation
