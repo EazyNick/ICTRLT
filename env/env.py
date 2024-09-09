@@ -14,7 +14,7 @@ except ImportError:
 
 class StockTradingEnv(gym.Env):
     # 기아, sk하이닉스는 120, 삼성전자는 120주
-    def __init__(self, df, max_stock=120, trading_charge=0.00015, trading_tax=0.002):
+    def __init__(self, df, max_stock=200, trading_charge=0.00015, trading_tax=0.002):
         """
         주식 데이터프레임 df를 입력으로 받아 환경을 초기화
 

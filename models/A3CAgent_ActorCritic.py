@@ -20,11 +20,11 @@ class ActorCritic(nn.Module):
         super(ActorCritic, self).__init__()
         log_manager.logger.info("Initializing ActorCritic model")
         
-        self.fc = nn.Linear(input_dim, 256) # 입력층 -> 은닉층
+        self.fc = nn.Linear(input_dim, 512) # 입력층 -> 은닉층
         # 정책 업데이트 (Actor)
-        self.policy = nn.Linear(256, action_space)  # 은닉층 -> 정책 (행동)
+        self.policy = nn.Linear(512, action_space)  # 은닉층 -> 정책 (행동)
         # 가치 업데이트 (Critic)
-        self.value = nn.Linear(256, 1)  # 은닉층 -> 가치 (상태 가치)
+        self.value = nn.Linear(512, 1)  # 은닉층 -> 가치 (상태 가치)
 
     def forward(self, x):
         """
