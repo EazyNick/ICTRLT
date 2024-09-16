@@ -109,8 +109,10 @@ class StockTradingEnv(gym.Env):
                 # log_manager.logger.info(f"Action: Sell {num_stocks_to_sell} stocks")
                 self.buy_sell_log.append((self.df.index[self.current_step], 'sell', num_stocks_to_sell, current_price))
             else:
-                # 보유 주식이 충분하지 않으면 매도하지 않음
-                num_stocks_to_sell = 0
+                num_stocks_to_sell = self.stock_owned  # sell only what is owned
+                self.cash_in_hand += num_stocks_to_sell * current_price * (1 - self.trading_charge - self.trading_tax)
+                self.stock_owned = 0  # reset to 0 after selling all remaining stock
+                self.buy_sell_log.append((self.df.index[self.current_step], 'sell', num_stocks_to_sell, current_price))
                 # log_manager.logger.info(f"Action: Sell failed due to insufficient stock")
         # 관망
         elif action == self.max_stock:
