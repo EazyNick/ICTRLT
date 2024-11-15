@@ -6,10 +6,6 @@ This project demonstrates how to use an Asynchronous Advantage Actor-Critic (A3C
 - [Introduction](#introduction)
 - [Features](#features)
 - [Setup](#setup)
-- [Usage](#usage)
-- [Results](#results)
-- [Contributing](#contributing)
-- [License](#license)
 
 ## Introduction
 Automated stock trading is a complex and challenging task that requires careful consideration of market dynamics, price movements, and various economic indicators. The A3C model is a reinforcement learning algorithm that uses multiple agents working in parallel to learn policies for maximizing the expected reward.
