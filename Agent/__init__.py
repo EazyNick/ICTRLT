@@ -1,5 +1,5 @@
-from .A3CAgent import A3CAgent, update_global_model
+from .A3CAgent import A3CAgent, sync_local_to_global
 
 __all__ = ['A3CAgent',
-           'update_global_model',
+           'sync_local_to_global',
            ]

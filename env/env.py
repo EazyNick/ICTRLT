@@ -61,8 +61,10 @@ class StockTradingEnv(gym.Env):
         self.cash_in_hand = 10000000  # 초기 현금
         self.stock_owned = 0  # 초기 주식 보유량
         if new_df is not None:
-            self.df = new_df
-            log_manager.logger.info(f"New data frame provided")
+            if isinstance(new_df, pd.DataFrame) and not new_df.empty:
+                self.df = new_df
+            else:
+                raise ValueError("Invalid dataframe provided for reset.")
         initial_observation = self._next_observation()
         # log_manager.logger.debug(f"Initial observation: {initial_observation}")
         self.buy_sell_log = []  # 매수/매도 기록 초기화
@@ -102,24 +104,26 @@ class StockTradingEnv(gym.Env):
 
         if action < self.max_stock:
             # 매도: 보유한 주식 내에서만 매도 가능
-            num_stocks_to_sell = min(action, self.stock_owned)
-            self.cash_in_hand += num_stocks_to_sell * current_price * (1 - self.trading_charge - self.trading_tax)
-            self.stock_owned -= num_stocks_to_sell
+            num_stocks_to_sell = max(0, min(action, self.stock_owned))
             if num_stocks_to_sell > 0:
+                self.cash_in_hand += num_stocks_to_sell * current_price * (1 - self.trading_charge - self.trading_tax)
+                self.stock_owned -= num_stocks_to_sell
+                
                 self.buy_sell_log.append((self.df.index[self.current_step], 'sell', num_stocks_to_sell, current_price))
-            log_manager.logger.info(f"{num_stocks_to_sell}주 매도")
+                log_manager.logger.info(f"{num_stocks_to_sell}주 매도")
 
         elif action > self.max_stock:
             # 매수: 현금 내에서만 매수 가능
-            num_stocks_to_buy = min(action - self.max_stock, self.cash_in_hand // (current_price * (1 + self.trading_charge))) # 행동에 따른 주식 수량만큼 매수 or 최대 매수 가능 주식 수(현금기준)
-            cost = num_stocks_to_buy * current_price * (1 + self.trading_charge)
-            if self.cash_in_hand >= cost and num_stocks_to_buy > 0:
+            num_stocks_to_buy = max(0, min(action - self.max_stock, self.cash_in_hand // (current_price * (1 + self.trading_charge)))) # 행동에 따른 주식 수량만큼 매수 or 최대 매수 가능 주식 수(현금기준)
+            if num_stocks_to_buy > 0:  # 실제 매수가 발생한 경우에만 로그 기록
+                cost = num_stocks_to_buy * current_price * (1 + self.trading_charge)
                 self.stock_owned += num_stocks_to_buy
                 self.cash_in_hand -= cost
                 self.buy_sell_log.append((self.df.index[self.current_step], 'buy', num_stocks_to_buy, current_price))
             if num_stocks_to_buy != 0:
                 log_manager.logger.info(f"{num_stocks_to_buy}주 매수")
 
+        
         # log_manager.logger.debug(f"Stock owned: {self.stock_owned}, Cash in hand: {self.cash_in_hand}")
 
         self.current_step += 1
@@ -129,9 +133,15 @@ class StockTradingEnv(gym.Env):
         #     log_manager.logger.info(f"Episode finished")
 
         reward = self.stock_owned * current_price + self.cash_in_hand
+
         if reward < self.cash_in_hand:
             reward = self.cash_in_hand  # 매도 후 이상 값 방지
-        # log_manager.logger.debug(f"Reward: {reward}")
+            log_manager.logger.debug(f"Reward: {reward}")
+
+#         log_manager.logger.debug(
+#         f"Step: {self.current_step}, Action: {action}, Cash: {self.cash_in_hand}, "
+#         f"Stocks: {self.stock_owned}, Price: {current_price}, Reward: {reward}"
+# )
 
         next_observation = self._next_observation()
         # log_manager.logger.debug(f"Next observation: {next_observation}")
@@ -150,6 +160,7 @@ class StockTradingEnv(gym.Env):
         # log_manager.logger.info(f"Profit: {profit}")
 
         if mode == 'human':
-            log_manager.logger.info(f'Step: {self.current_step}, Profit: {profit}')
+            pass
+            # log_manager.logger.info(f'Step: {self.current_step}, Profit: {profit}')
         else:
             raise NotImplementedError(f"Render mode '{mode}' is not supported.")

@@ -1,6 +1,8 @@
-gym
-numpy
-pandas
-torch
-matplotlib
-scikit-learn
+gym==0.26.2
+numpy==2.2.0
+pandas==2.2.3
+torch==2.5.1+cpu
+matplotlib==3.9.3
+scikit-learn==1.6.0
+colorlog==6.9.0
+

@@ -4,6 +4,7 @@ from torch.distributions import Categorical
 import sys
 import os
 import random
+import numpy as np
 
 try:
     sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
@@ -57,6 +58,7 @@ class A3CAgent:
 
             m = Categorical(policy)
             action = m.sample()
+
             return action.item(), m.log_prob(action)
         
     def compute_returns(self, rewards, dones, next_value):
@@ -80,39 +82,45 @@ class A3CAgent:
         # log_manager.logger.debug(f"Computed returns: {returns}")
         return returns
 
-    def update(self, trajectory):
+    def update_batch(self, batch):
         """
-        모델 업데이트
-        각 에피소드에서 각각의 스텝의 값들을 배열에 추가함
-        이전 스텝 상태, 보상을 고려할 수 있음
+        글로벌 모델에서 배치 업데이트를 수행합니다.
 
         Args:
-            trajectory (tuple): 상태, 행동, 보상, 종료 여부, 다음 상태를 포함한 튜플
+            batch (list): 여러 워커에서 수집한 배치 데이터 (states, actions, rewards, dones, next_states).
         """
-        # log_manager.logger.debug("Updating model")
-        states, actions, rewards, dones, next_state = trajectory
-        _, next_value = self.model(torch.from_numpy(next_state).float())
+        states, actions, rewards, dones, next_states = zip(*batch)
+
+        # 데이터를 텐서로 변환
+        states = torch.tensor(np.vstack(states), dtype=torch.float32)
+        actions = torch.tensor(np.hstack(actions), dtype=torch.int64)
+        rewards = np.hstack(rewards)
+        dones = np.hstack(dones)
+        next_states = torch.tensor(np.vstack(next_states), dtype=torch.float32)
+
+        # 다음 상태의 가치 계산
+        _, next_value = self.model(next_states[-1])
         returns = self.compute_returns(rewards, dones, next_value)
 
+        # 모델 예측 및 손실 계산
         log_probs = []
         values = []
-        actions = torch.tensor(actions)
-        for i, state in enumerate(states):
-            policy, value = self.model(torch.from_numpy(state).float())
-            values.append(value)
+        for i in range(len(states)):
+            policy, value = self.model(states[i])
             m = Categorical(torch.softmax(policy, dim=-1))
             log_probs.append(m.log_prob(actions[i]))
+            values.append(value)
 
-        values = torch.stack(values)
-        returns = torch.tensor(returns).float()
+        values = torch.stack(values).squeeze()
+        returns = torch.tensor(returns, dtype=torch.float32)
         log_probs = torch.stack(log_probs)
 
-        # Advantage는 특정 행동의 보상이 평균 보상보다 얼마나 좋은지를 나타냅니다.
-        advantage = returns - values.squeeze()
-
+        # 손실 계산
+        advantage = returns - values
         policy_loss = -(log_probs * advantage.detach()).mean()
         value_loss = advantage.pow(2).mean()
 
+        # 모델 업데이트
         self.optimizer.zero_grad()
         (policy_loss + value_loss).backward()
         self.optimizer.step()
@@ -139,18 +147,21 @@ class A3CAgent:
         self.model.eval()
         log_manager.logger.info(f"Model loaded from {path}")
 
-def update_global_model(global_model, local_model, optimizer):
+
+def sync_local_to_global(global_agent, local_agent):
     """
-    로컬 모델의 기울기를 글로벌 모델로 업데이트
-    손실 함수(loss function)에 대한 각 가중치의 기울기를 계산하여, 이 기울기를 이용해 가중치를 업데이트
+    로컬 에이전트의 기울기를 글로벌 에이전트로 동기화합니다.
 
     Args:
-        global_model (nn.Module): 글로벌 모델
-        local_model (nn.Module): 로컬 모델
-        optimizer (optim.Optimizer): 글로벌 모델의 옵티마이저
+        global_agent (A3CAgent): 글로벌 에이전트
+        local_agent (A3CAgent): 로컬 에이전트
     """
-    for global_param, local_param in zip(global_model.parameters(), local_model.parameters()):
+    for global_param, local_param in zip(global_agent.model.parameters(), local_agent.model.parameters()):
         if local_param.grad is not None:
-            global_param._grad = local_param.grad  # 로컬 모델의 기울기를 글로벌 모델에 복사
+            global_param._grad = local_param.grad
+    # 글로벌 모델 업데이트
+    global_agent.optimizer.step()
+    global_agent.optimizer.zero_grad()
 
-    optimizer.step()  # 글로벌 모델의 가중치 업데이트
+    # 로컬 모델을 글로벌 모델의 파라미터로 동기화
+    local_agent.model.load_state_dict(global_agent.model.state_dict())
