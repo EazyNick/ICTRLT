@@ -41,7 +41,7 @@ class StockTradingEnv(gym.Env):
         num_high = len([col for col in df.columns if 'High' in col])
         num_low = len([col for col in df.columns if 'Low' in col])
         # 잔고, 주식 보유량을 포함한 관찰 공간 정의
-        self.observation_space = gym.spaces.Box(low=0, high=np.inf, shape=(2 + num_sma + num_vma + num_high + num_low + 1,), dtype=np.float32)
+        self.observation_space = gym.spaces.Box(low=0, high=np.inf, shape=(3 + num_sma + num_vma + num_high + num_low + 1,), dtype=np.float32)
 
         # 매수/매도 기록을 위한 리스트 초기화
         self.buy_sell_log = []
@@ -80,7 +80,8 @@ class StockTradingEnv(gym.Env):
         high_values = self.df.iloc[self.current_step].filter(like='High').values
         low_values = self.df.iloc[self.current_step].filter(like='Low').values
         current_price = self.df['Close'].values[self.current_step]
-        next_observation = np.concatenate(([current_price, self.cash_in_hand, self.stock_owned], sma_values, vma_values, high_values, low_values)).astype(np.float32)
+        volume = self.df['Volume'].values[self.current_step]
+        next_observation = np.concatenate(([current_price, volume, self.cash_in_hand, self.stock_owned], sma_values, vma_values, high_values, low_values)).astype(np.float32)
         next_observation = np.nan_to_num(next_observation, nan=0.0)  # NaN 값을 0으로 대체
         # log_manager.logger.debug(f"Next observation: {next_observation}, current_price: {current_price}")
         return next_observation
@@ -99,38 +100,25 @@ class StockTradingEnv(gym.Env):
         current_price = self.df['Close'].values[self.current_step]
         # log_manager.logger.debug(f"Current price: {current_price}")
 
-       # 행동 정의
-        # 매도
         if action < self.max_stock:
-            num_stocks_to_sell = action
-            if self.stock_owned >= num_stocks_to_sell:
-                self.stock_owned -= num_stocks_to_sell
-                self.cash_in_hand += num_stocks_to_sell * current_price * (1 - self.trading_charge - self.trading_tax)
-                # log_manager.logger.info(f"Action: Sell {num_stocks_to_sell} stocks")
+            # 매도: 보유한 주식 내에서만 매도 가능
+            num_stocks_to_sell = min(action, self.stock_owned)
+            self.cash_in_hand += num_stocks_to_sell * current_price * (1 - self.trading_charge - self.trading_tax)
+            self.stock_owned -= num_stocks_to_sell
+            if num_stocks_to_sell > 0:
                 self.buy_sell_log.append((self.df.index[self.current_step], 'sell', num_stocks_to_sell, current_price))
-            else:
-                num_stocks_to_sell = self.stock_owned  # sell only what is owned
-                self.cash_in_hand += num_stocks_to_sell * current_price * (1 - self.trading_charge - self.trading_tax)
-                self.stock_owned = 0  # reset to 0 after selling all remaining stock
-                self.buy_sell_log.append((self.df.index[self.current_step], 'sell', num_stocks_to_sell, current_price))
-                # log_manager.logger.info(f"Action: Sell failed due to insufficient stock")
-        # 관망
-        elif action == self.max_stock:
-            pass
-            # log_manager.logger.info(f"Action: Hold")
-        # 매수
-        else:
-            num_stocks_to_buy = action - self.max_stock
+            log_manager.logger.info(f"{num_stocks_to_sell}주 매도")
+
+        elif action > self.max_stock:
+            # 매수: 현금 내에서만 매수 가능
+            num_stocks_to_buy = min(action - self.max_stock, self.cash_in_hand // (current_price * (1 + self.trading_charge))) # 행동에 따른 주식 수량만큼 매수 or 최대 매수 가능 주식 수(현금기준)
             cost = num_stocks_to_buy * current_price * (1 + self.trading_charge)
-            if self.cash_in_hand >= cost:
+            if self.cash_in_hand >= cost and num_stocks_to_buy > 0:
                 self.stock_owned += num_stocks_to_buy
                 self.cash_in_hand -= cost
-                # log_manager.logger.info(f"Action: Buy {num_stocks_to_buy} stocks")
                 self.buy_sell_log.append((self.df.index[self.current_step], 'buy', num_stocks_to_buy, current_price))
-            else:
-                # 현금이 충분하지 않으면 매수하지 않음
-                num_stocks_to_buy = 0
-                # log_manager.logger.info(f"Action: Buy failed due to insufficient cash")
+            if num_stocks_to_buy != 0:
+                log_manager.logger.info(f"{num_stocks_to_buy}주 매수")
 
         # log_manager.logger.debug(f"Stock owned: {self.stock_owned}, Cash in hand: {self.cash_in_hand}")
 
@@ -141,6 +129,8 @@ class StockTradingEnv(gym.Env):
         #     log_manager.logger.info(f"Episode finished")
 
         reward = self.stock_owned * current_price + self.cash_in_hand
+        if reward < self.cash_in_hand:
+            reward = self.cash_in_hand  # 매도 후 이상 값 방지
         # log_manager.logger.debug(f"Reward: {reward}")
 
         next_observation = self._next_observation()
