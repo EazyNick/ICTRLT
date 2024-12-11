@@ -5,4 +5,4 @@ torch==2.5.1+cpu
 matplotlib==3.9.3
 scikit-learn==1.6.0
 colorlog==6.9.0
-
+pyyaml==6.0.2
