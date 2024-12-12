@@ -1,0 +1,25 @@
+env:
+  cash_in_hand: 10000000 # 학습 시작 시 보유 현금
+  max_stock: 200 # 최대 매수, 매도 가능 주식 수
+  trading_charge: 0.00015 # 거래 수수료
+  trading_tax: 0.002 # 거래 세금
+
+A3CAgent:
+  Learning Rate: 0.001 # 학습률
+
+ActorCritic:
+  hidden_layer:
+    size: 512  # 은닉층의 뉴런 개수
+
+training:
+  n_processes: 8
+  n_episodes: 4048
+  batch_size: 3
+
+seeds:
+  random: 20241211
+  numpy: 2024
+  torch: 1211
+
+Logger:
+  directory: D:\\ICTRLT\\utils\\Log

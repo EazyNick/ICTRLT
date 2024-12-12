@@ -8,8 +8,10 @@ import sys
 try:
     sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
     from utils import *
+    from config import *
 except ImportError:
     from utils import *
+    from config import *
 
 
 class StockTradingEnv(gym.Env):
@@ -23,9 +25,15 @@ class StockTradingEnv(gym.Env):
         """
         super(StockTradingEnv, self).__init__()
         log_manager.logger.info(f"StockTradingEnv initialized")
+        self.config = ConfigLoader()
+        cash_in_hand = self.config.get_cash_in_hand()
+        max_stock = self.config.get_max_stock()
+        trading_charge = self.config.get_trading_charge()
+        trading_tax = self.config.get_trading_tax()
+
         self.df = df
         self.current_step = 0
-        self.cash_in_hand = 10000000  # 초기 현금
+        self.cash_in_hand = cash_in_hand  # 초기 현금
         self.stock_owned = 0  # 초기 주식 보유량 
         self.max_stock = max_stock  # 한 번에 매수 또는 매도할 수 있는 최대 주식 수
         self.trading_charge = trading_charge  # 거래 수수료
@@ -57,8 +65,11 @@ class StockTradingEnv(gym.Env):
             np.ndarray: 초기 관찰값
         """
         # log_manager.logger.info(f"Environment reset start")
+
+        cash_in_hand = self.config.get_cash_in_hand()
+
         self.current_step = 0
-        self.cash_in_hand = 10000000  # 초기 현금
+        self.cash_in_hand = cash_in_hand  # 초기 현금
         self.stock_owned = 0  # 초기 주식 보유량
         if new_df is not None:
             if isinstance(new_df, pd.DataFrame) and not new_df.empty:
@@ -110,7 +121,7 @@ class StockTradingEnv(gym.Env):
                 self.stock_owned -= num_stocks_to_sell
                 
                 self.buy_sell_log.append((self.df.index[self.current_step], 'sell', num_stocks_to_sell, current_price))
-                log_manager.logger.info(f"{num_stocks_to_sell}주 매도")
+                # log_manager.logger.info(f"{num_stocks_to_sell}주 매도")
 
         elif action > self.max_stock:
             # 매수: 현금 내에서만 매수 가능
@@ -120,8 +131,8 @@ class StockTradingEnv(gym.Env):
                 self.stock_owned += num_stocks_to_buy
                 self.cash_in_hand -= cost
                 self.buy_sell_log.append((self.df.index[self.current_step], 'buy', num_stocks_to_buy, current_price))
-            if num_stocks_to_buy != 0:
-                log_manager.logger.info(f"{num_stocks_to_buy}주 매수")
+            # if num_stocks_to_buy != 0:
+            #     log_manager.logger.info(f"{num_stocks_to_buy}주 매수")
 
         
         # log_manager.logger.debug(f"Stock owned: {self.stock_owned}, Cash in hand: {self.cash_in_hand}")

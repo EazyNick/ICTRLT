@@ -8,9 +8,10 @@ from utils import *
 from pathlib import Path
 import numpy as np
 import random
+from config import *
 
 # 시드값 설정 함수
-def set_seeds(random_seed=None, numpy_seed=None, torch_seed=None):
+def set_seeds():
     """
     모든 난수 생성기의 시드값을 각각 설정하여 일관된 결과를 생성합니다.
 
@@ -19,6 +20,14 @@ def set_seeds(random_seed=None, numpy_seed=None, torch_seed=None):
         numpy_seed (int, optional): NumPy 모듈의 시드값
         torch_seed (int, optional): PyTorch 모듈의 시드값
     """
+    config = ConfigLoader()
+    _random_seed_value = config.get_cash_in_hand()
+    _numpy_seed_value = config.get_max_stock()
+    _torch_seed_value = config.get_trading_charge()
+    random_seed = _random_seed_value
+    numpy_seed = _numpy_seed_value
+    torch_seed = _torch_seed_value
+
     if random_seed is not None:
         random.seed(random_seed)
 
@@ -30,15 +39,10 @@ def set_seeds(random_seed=None, numpy_seed=None, torch_seed=None):
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(torch_seed)
 
-# 시드값 설정 (각각의 시드값을 다르게 설정)
-random_seed_value = 42
-numpy_seed_value = 2023
-torch_seed_value = 1234
-
 # 저장된 모델을 로드하고 새 데이터를 기반으로 매수, 매도를 수행하는 함수
-def run_trading(agent, env, new_data, base_seed=42, process_id=0):
+def run_trading(agent, env, new_data):
     # 시드값 설정
-    set_seeds(random_seed=base_seed + process_id, numpy_seed=base_seed + process_id, torch_seed=base_seed + process_id)
+    set_seeds()
 
     state = env.reset(new_df=new_data)  # 새로운 데이터를 사용하여 환경 초기화
     done = False
@@ -179,9 +183,9 @@ def main_run():
 
     # 모델 로드
     # 삼성전자
-    model_path = Path(__file__).resolve().parent / 'output/a3c_stock_trading_model.pth'
-    file_path = Path(__file__).resolve().parent / 'data/data_csv/samsung_stock_data.csv'
-    new_data = pd.read_csv(Path(__file__).resolve().parent / 'data/data_csv/Samsung_stock_testdata.csv', index_col='Date', parse_dates=True)  # 새로운 주식 데이터 로드
+    model_path = Path(__file__).resolve().parent / 'output/kia_stock_trading_model_4048.pth'
+    file_path = Path(__file__).resolve().parent / 'data/data_csv/kia_stock_data.csv'
+    new_data = pd.read_csv(Path(__file__).resolve().parent / 'data/data_csv/kia_stock_testdata.csv', index_col='Date', parse_dates=True)  # 새로운 주식 데이터 로드
     
     # 기아차
     df = pd.read_csv(file_path, index_col='Date', parse_dates=True)  # 주식 데이터 로드
@@ -190,7 +194,7 @@ def main_run():
     agent.load_model(model_path)  # 학습된 모델 로드
 
     # 새 데이터를 기반으로 거래 수행
-    account_values, stock_prices, dates, buy_sell_log, stock_owned_log = run_trading(agent, env, new_data, base_seed=random_seed_value, process_id=0)
+    account_values, stock_prices, dates, buy_sell_log, stock_owned_log = run_trading(agent, env, new_data)
 
     # 코스피 지수 수익률% vs 모델 수익률%
     # 기아차 데이터로 모델의 수익률 계산

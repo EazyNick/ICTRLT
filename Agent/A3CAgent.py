@@ -11,10 +11,12 @@ try:
     from utils import *
     from env import *
     from models import *
+    from config import *
 except ImportError:    
     from utils import *
     from env import *
     from models import *
+    from config import *
 
 class A3CAgent:
     def __init__(self, env, gamma=0.99, epsilon=0.05):
@@ -27,11 +29,13 @@ class A3CAgent:
             epsilon (float): 무작위 행동을 선택할 확률
         """
         log_manager.logger.info("Initializing A3CAgent")
+        # ConfigLoader로 설정값 불러오기
+        learning_rate = ConfigLoader.get_learning_rate() 
         self.env = env
         self.gamma = gamma
         self.epsilon = epsilon
         self.model = ActorCritic(input_dim=env.observation_space.shape[0], action_space=env.action_space.n)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
 
     def select_action(self, state):
         """

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from utils import log_manager
+from config import *
 
 class ActorCritic(nn.Module):
     def __init__(self, input_dim, action_space):
@@ -19,12 +20,13 @@ class ActorCritic(nn.Module):
         """
         super(ActorCritic, self).__init__()
         log_manager.logger.info("Initializing ActorCritic model")
+        hidden_layer_size = ConfigLoader.get_hidden_layer_size()  # 기본값: 0.001
         
-        self.fc = nn.Linear(input_dim, 512) # 입력층 -> 은닉층
+        self.fc = nn.Linear(input_dim, hidden_layer_size) # 입력층 -> 은닉층
         # 정책 업데이트 (Actor)
-        self.policy = nn.Linear(512, action_space)  # 은닉층 -> 정책 (행동)
+        self.policy = nn.Linear(hidden_layer_size, action_space)  # 은닉층 -> 정책 (행동)
         # 가치 업데이트 (Critic)
-        self.value = nn.Linear(512, 1)  # 은닉층 -> 가치 (상태 가치)
+        self.value = nn.Linear(hidden_layer_size, 1)  # 은닉층 -> 가치 (상태 가치)
 
     def forward(self, x):
         """

@@ -6,17 +6,23 @@ from env import StockTradingEnv
 from utils import *
 import numpy as np
 import random
+from config import *
 
 # 시드값 설정 함수
-def set_seeds(random_seed=None, numpy_seed=None, torch_seed=None):
+def set_seeds():
     """
     모든 난수 생성기의 시드값을 각각 설정하여 일관된 결과를 생성합니다.
-
-    Args:
-        random_seed (int, optional): Python random 모듈의 시드값
-        numpy_seed (int, optional): NumPy 모듈의 시드값
-        torch_seed (int, optional): PyTorch 모듈의 시드값
     """
+
+    config = ConfigLoader()
+    _random_seed_value = config.get_cash_in_hand()
+    _numpy_seed_value = config.get_max_stock()
+    _torch_seed_value = config.get_trading_charge()
+
+    random_seed = _random_seed_value
+    numpy_seed = _numpy_seed_value
+    torch_seed = _torch_seed_value
+
     if random_seed is not None:
         random.seed(random_seed)
 
@@ -27,11 +33,6 @@ def set_seeds(random_seed=None, numpy_seed=None, torch_seed=None):
         torch.manual_seed(torch_seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(torch_seed)
-
-# 시드값 설정 (각각의 시드값을 다르게 설정)
-random_seed_value = 42
-numpy_seed_value = 2023
-torch_seed_value = 1234
 
 def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, batch_size=32):
     """
@@ -45,6 +46,9 @@ def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, batch_size=
         global_ep_lock (mp.Lock): 에피소드 카운터 잠금
         batch_size (int): 배치 크기
     """
+
+    set_seeds()
+
     local_agent = A3CAgent(env)
     batch = []  # 배치 데이터를 저장할 리스트
 
@@ -143,14 +147,22 @@ def save_trained_model(global_agent, model_path):
     global_agent.save_model(model_path)
 
 if __name__ == '__main__':
-    data_path = 'data/data_csv/samsung_stock_data.csv'
-    model_path = 'output/a3c_stock_trading_model.pth'
+
+    set_seeds()
+
+    data_path = 'data/data_csv/kia_stock_data.csv'
+    model_path = 'output/kia_stock_trading_model_4048.pth'
 
     # 환경과 에이전트 초기화
     env, global_agent, df = initialize_environment_and_agent(data_path)
 
+    config = ConfigLoader()
+    n_processes = config.get_n_processes()
+    n_episodes = config.get_n_episodes()
+    batch_size = config.get_batch_size()
+
     # 학습 프로세스 시작
-    start_training(global_agent, env, 4, 8, 32)
+    start_training(global_agent, env, n_processes, n_episodes, batch_size)
 
     # 학습된 모델 저장
     save_trained_model(global_agent, model_path)

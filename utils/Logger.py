@@ -14,7 +14,7 @@ class LogManager:
             cls._instance = super(LogManager, cls).__new__(cls, *args, **kwargs)
         return cls._instance
     
-    def __init__(self, directory='D:\\ICT_Project\\ICTRLT\\utils\\Log', max_files=10):
+    def __init__(self, directory='D:\\ICTRLT\\utils\\Log', max_files=10):
         if not hasattr(self, 'initialized'):  # 이 인스턴스가 초기화되었는지 확인
             self.directory = directory
             self.max_files = max_files
@@ -30,7 +30,7 @@ class LogManager:
 
     def _init_logger(self):
         """ 로거 초기화 """
-        logger = logging.getLogger('ICTRL')
+        logger = logging.getLogger('RLTrading')
 
         log_colors_config = {
             'DEBUG': 'cyan',
