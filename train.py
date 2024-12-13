@@ -29,9 +29,9 @@ def set_seeds():
     모든 난수 생성기의 시드값을 각각 설정하여 일관된 결과를 생성합니다.
     """
     config = ConfigLoader()
-    random_seed = config.get_cash_in_hand()
-    numpy_seed = config.get_max_stock()
-    torch_seed = config.get_trading_charge()
+    random_seed = config.get_random_seed()
+    numpy_seed = config.get_numpy_seed()
+    torch_seed = config.get_torch_seed()
 
     if random_seed is not None:
         random.seed(random_seed)
@@ -157,7 +157,7 @@ if __name__ == '__main__':
     set_seeds()
 
     data_path = 'data/data_csv/kia_stock_data.csv'
-    model_path = 'output/kia_stock_trading_model_4048.pth'
+    model_path = 'output/kia_stock_trading_model_test.pth'
 
     # 환경과 에이전트 초기화
     env, global_agent, df = initialize_environment_and_agent(data_path)

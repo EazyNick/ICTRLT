@@ -176,8 +176,8 @@ def find_optimal_seeds(agent, env, data, seed_range):
                 random_seed, numpy_seed, torch_seed, diff
             )
 
-    if count // 10 == 0:
-        log_manager.logger.info("COUNT: %d", count)    
+        if count // 20 == 0:
+            log_manager.logger.info("COUNT: %d", count)
 
     return optimal_seeds, best_diff
 

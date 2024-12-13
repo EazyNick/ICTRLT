@@ -33,9 +33,9 @@ def set_seeds():
         torch_seed (int, optional): PyTorch 모듈의 시드값
     """
     config = ConfigLoader()
-    random_seed = config.get_cash_in_hand()
-    numpy_seed = config.get_max_stock()
-    torch_seed = config.get_trading_charge()
+    random_seed = config.get_random_seed()
+    numpy_seed = config.get_numpy_seed()
+    torch_seed = config.get_torch_seed()
 
     if random_seed is not None:
         random.seed(random_seed)
@@ -47,6 +47,11 @@ def set_seeds():
         torch.manual_seed(torch_seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(torch_seed)
+
+    log_manager.logger.info(
+                "New optimal seeds found: random_seed=%d, numpy_seed=%d, torch_seed=%d",
+                random_seed, numpy_seed, torch_seed
+            )
 
 def run_trading(agent, env, new_data):
     """
