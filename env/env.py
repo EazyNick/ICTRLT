@@ -1,21 +1,25 @@
+"""
+학습 환경(env)
+"""
+
+import os
+import sys
 import gym
 from gym import spaces
 import numpy as np
 import pandas as pd
-import os
-import sys
 
 try:
     sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
-    from utils import *
-    from config import *
+    from utils import log_manager
+    from config import ConfigLoader
 except ImportError:
-    from utils import *
-    from config import *
-
+    print(ImportError)
 
 class StockTradingEnv(gym.Env):
-    # 기아, sk하이닉스는 120, 삼성전자는 120주
+    """
+    주식 거래 환경을 정의하는 클래스.
+    """
     def __init__(self, df, max_stock=200, trading_charge=0.00015, trading_tax=0.002):
         """
         주식 데이터프레임 df를 입력으로 받아 환경을 초기화
@@ -25,19 +29,15 @@ class StockTradingEnv(gym.Env):
         """
         super(StockTradingEnv, self).__init__()
         log_manager.logger.info(f"StockTradingEnv initialized")
-        self.config = ConfigLoader()
-        cash_in_hand = self.config.get_cash_in_hand()
-        max_stock = self.config.get_max_stock()
-        trading_charge = self.config.get_trading_charge()
-        trading_tax = self.config.get_trading_tax()
 
+        self.config = ConfigLoader()
         self.df = df
         self.current_step = 0
-        self.cash_in_hand = cash_in_hand  # 초기 현금
-        self.stock_owned = 0  # 초기 주식 보유량 
-        self.max_stock = max_stock  # 한 번에 매수 또는 매도할 수 있는 최대 주식 수
-        self.trading_charge = trading_charge  # 거래 수수료
-        self.trading_tax = trading_tax  # 거래세
+        self.cash_in_hand = self.config.get_cash_in_hand()  # 초기 현금
+        self.stock_owned = 0  # 초기 주식 보유량
+        self.max_stock = self.config.get_max_stock()  # 한 번에 매수/매도 가능한 최대 주식 수
+        self.trading_charge = self.config.get_trading_charge()  # 거래 수수료
+        self.trading_tax = self.config.get_trading_tax()  # 거래세
 
         # 행동: 0~(2*max_stock) (매도 0~max_stock, 유지 max_stock, 매수 max_stock+1~2*max_stock)
         self.action_space = spaces.Discrete(2 * max_stock + 1)
@@ -48,8 +48,13 @@ class StockTradingEnv(gym.Env):
         num_vma = len([col for col in df.columns if 'VMA' in col])
         num_high = len([col for col in df.columns if 'High' in col])
         num_low = len([col for col in df.columns if 'Low' in col])
+
         # 잔고, 주식 보유량을 포함한 관찰 공간 정의
-        self.observation_space = gym.spaces.Box(low=0, high=np.inf, shape=(3 + num_sma + num_vma + num_high + num_low + 1,), dtype=np.float32)
+        self.observation_space = spaces.Box(
+            low=0, high=np.inf,
+            shape=(3 + num_sma + num_vma + num_high + num_low + 1,),
+            dtype=np.float32
+        )
 
         # 매수/매도 기록을 위한 리스트 초기화
         self.buy_sell_log = []
@@ -65,17 +70,16 @@ class StockTradingEnv(gym.Env):
             np.ndarray: 초기 관찰값
         """
         # log_manager.logger.info(f"Environment reset start")
-
-        cash_in_hand = self.config.get_cash_in_hand()
-
         self.current_step = 0
-        self.cash_in_hand = cash_in_hand  # 초기 현금
+        self.cash_in_hand = self.config.get_cash_in_hand()  # 초기 현금
         self.stock_owned = 0  # 초기 주식 보유량
+
         if new_df is not None:
             if isinstance(new_df, pd.DataFrame) and not new_df.empty:
                 self.df = new_df
             else:
                 raise ValueError("Invalid dataframe provided for reset.")
+            
         initial_observation = self._next_observation()
         # log_manager.logger.debug(f"Initial observation: {initial_observation}")
         self.buy_sell_log = []  # 매수/매도 기록 초기화
@@ -94,7 +98,11 @@ class StockTradingEnv(gym.Env):
         low_values = self.df.iloc[self.current_step].filter(like='Low').values
         current_price = self.df['Close'].values[self.current_step]
         volume = self.df['Volume'].values[self.current_step]
-        next_observation = np.concatenate(([current_price, volume, self.cash_in_hand, self.stock_owned], sma_values, vma_values, high_values, low_values)).astype(np.float32)
+
+        next_observation = np.concatenate((
+            [current_price, volume, self.cash_in_hand, self.stock_owned],
+            sma_values, vma_values, high_values, low_values
+        )).astype(np.float32)
         next_observation = np.nan_to_num(next_observation, nan=0.0)  # NaN 값을 0으로 대체
         # log_manager.logger.debug(f"Next observation: {next_observation}, current_price: {current_price}")
         return next_observation
@@ -119,13 +127,15 @@ class StockTradingEnv(gym.Env):
             if num_stocks_to_sell > 0:
                 self.cash_in_hand += num_stocks_to_sell * current_price * (1 - self.trading_charge - self.trading_tax)
                 self.stock_owned -= num_stocks_to_sell
-                
                 self.buy_sell_log.append((self.df.index[self.current_step], 'sell', num_stocks_to_sell, current_price))
                 # log_manager.logger.info(f"{num_stocks_to_sell}주 매도")
 
         elif action > self.max_stock:
             # 매수: 현금 내에서만 매수 가능
-            num_stocks_to_buy = max(0, min(action - self.max_stock, self.cash_in_hand // (current_price * (1 + self.trading_charge)))) # 행동에 따른 주식 수량만큼 매수 or 최대 매수 가능 주식 수(현금기준)
+            num_stocks_to_buy = max(0, min(
+                action - self.max_stock,
+                self.cash_in_hand // (current_price * (1 + self.trading_charge))
+            ))
             if num_stocks_to_buy > 0:  # 실제 매수가 발생한 경우에만 로그 기록
                 cost = num_stocks_to_buy * current_price * (1 + self.trading_charge)
                 self.stock_owned += num_stocks_to_buy
@@ -147,12 +157,7 @@ class StockTradingEnv(gym.Env):
 
         if reward < self.cash_in_hand:
             reward = self.cash_in_hand  # 매도 후 이상 값 방지
-            log_manager.logger.debug(f"Reward: {reward}")
-
-#         log_manager.logger.debug(
-#         f"Step: {self.current_step}, Action: {action}, Cash: {self.cash_in_hand}, "
-#         f"Stocks: {self.stock_owned}, Price: {current_price}, Reward: {reward}"
-# )
+            log_manager.logger.info("Reward: %s", reward)
 
         next_observation = self._next_observation()
         # log_manager.logger.debug(f"Next observation: {next_observation}")
@@ -164,10 +169,12 @@ class StockTradingEnv(gym.Env):
         현재 시간 스텝과 총 수익을 출력
         
         Args:
-            mode (str): 출력 모드. 'human'은 콘솔 출력.
-            close (bool): 환경을 닫을지 여부. 기본값은 False.
+            mode (str): 출력 모드. 'human'은 콘솔 출력. (기본값: 'human')
+            close (bool): 환경을 닫을지 여부 (기본값: False)
         """
-        profit = self.stock_owned * self.df['Close'].values[self.current_step] + self.cash_in_hand - 10000000
+        profit = (
+            self.stock_owned * self.df['Close'].values[self.current_step] + self.cash_in_hand - 10000000
+        )
         # log_manager.logger.info(f"Profit: {profit}")
 
         if mode == 'human':

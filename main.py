@@ -1,16 +1,28 @@
-import torch
-import pandas as pd
-from Agent.A3CAgent import A3CAgent  # A3CAgent 클래스 불러오기
-from env.env import StockTradingEnv
-import matplotlib.pyplot as plt
-from sklearn.preprocessing import MinMaxScaler
-from utils import *
-from pathlib import Path
-import numpy as np
-import random
-from config import *
+"""
+Stock Trading Automation with A3C Reinforcement Learning
 
-# 시드값 설정 함수
+이 파일은 A3C 강화 학습 모델을 사용하여 주식 거래를 자동화하는 스크립트를 포함합니다.
+주요 기능:
+- 강화 학습 모델을 사용한 매수/매도/유지 결정
+- 거래 결과 시각화
+- 수익률 비교 분석
+
+사용법:
+- 모델 경로와 데이터 경로를 설정한 후 실행하면 결과가 출력됩니다.
+"""
+
+import random
+from pathlib import Path
+import pandas as pd
+import numpy as np
+import torch
+import matplotlib.pyplot as plt
+
+from Agent.a3c_agent import A3CAgent
+from env.env import StockTradingEnv
+from config import ConfigLoader
+from utils import log_manager
+
 def set_seeds():
     """
     모든 난수 생성기의 시드값을 각각 설정하여 일관된 결과를 생성합니다.
@@ -21,12 +33,9 @@ def set_seeds():
         torch_seed (int, optional): PyTorch 모듈의 시드값
     """
     config = ConfigLoader()
-    _random_seed_value = config.get_cash_in_hand()
-    _numpy_seed_value = config.get_max_stock()
-    _torch_seed_value = config.get_trading_charge()
-    random_seed = _random_seed_value
-    numpy_seed = _numpy_seed_value
-    torch_seed = _torch_seed_value
+    random_seed = config.get_cash_in_hand()
+    numpy_seed = config.get_max_stock()
+    torch_seed = config.get_trading_charge()
 
     if random_seed is not None:
         random.seed(random_seed)
@@ -39,9 +48,18 @@ def set_seeds():
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(torch_seed)
 
-# 저장된 모델을 로드하고 새 데이터를 기반으로 매수, 매도를 수행하는 함수
 def run_trading(agent, env, new_data):
-    # 시드값 설정
+    """
+    학습된 모델을 사용하여 주식 거래를 시뮬레이션합니다.
+
+    Args:
+        agent (A3CAgent): 강화 학습 에이전트
+        env (StockTradingEnv): 주식 거래 환경
+        new_data (pd.DataFrame): 새로운 거래 데이터
+
+    Returns:
+        tuple: 계좌 가치, 주식 가격, 날짜, 거래 로그, 주식 보유량 기록
+    """
     set_seeds()
 
     state = env.reset(new_df=new_data)  # 새로운 데이터를 사용하여 환경 초기화
@@ -71,9 +89,20 @@ def run_trading(agent, env, new_data):
     
     return account_values, stock_prices, dates, env.buy_sell_log, stock_owned_log
 
-def plot_trading_results(dates, account_values, stock_prices, buy_sell_log,stock_owned_log, save_path='output/trading_results.png'):
+def plot_trading_results(
+    dates, account_values, stock_prices, buy_sell_log, stock_owned_log,
+    save_path='output/trading_results.png'
+):
     """
     주가 vs 포트폴리오 가치
+
+    Args:
+        dates (list): 거래 날짜 리스트
+        account_values (list): 계좌 가치 기록
+        stock_prices (list): 주식 가격 기록
+        buy_sell_log (list): 매수/매도 기록
+        stock_owned_log (list): 주식 보유량 기록
+        save_path (str): 결과를 저장할 경로
     """
     # 전역 글자 크기 설정 (옵션)
     plt.rcParams.update({'font.size': 14})
@@ -103,7 +132,7 @@ def plot_trading_results(dates, account_values, stock_prices, buy_sell_log,stock
     ax2.set_ylabel('Stocks Owned', color='green', fontsize=20)
 
     for log in buy_sell_log:
-        date, action, num_stocks, price = log
+        date, action, _, _ = log # date, action, num_stocks, price
         if date in dates:
             index = dates.index(date)  # 날짜에 해당하는 인덱스 찾기
             y_value = stock_price_returns[index]  # 해당 날짜의 주가 수익률 가져오기
@@ -125,7 +154,7 @@ def plot_trading_results(dates, account_values, stock_prices, buy_sell_log,stock
     # 이미지 파일로 저장
     plt.savefig(save_path)
     plt.close()
-    log_manager.logger.info(f"Trading results saved as {save_path}")
+    log_manager.logger.info("Trading results saved as %s", save_path)
 
 def plot_comparison_results(dates, model_returns, kospi_returns, buy_sell_log, save_path='output/comparison_results.png'):
     """
@@ -155,7 +184,7 @@ def plot_comparison_results(dates, model_returns, kospi_returns, buy_sell_log, s
 
     # 매수 및 매도 시점 표시
     for log in buy_sell_log:
-        date, action, num_stocks, price = log
+        date, action, _, _ = log # date, action, num_stocks, price
         if date in model_returns.index:  # 날짜가 model_returns에 존재할 때만 처리
             if action == 'buy':
                 ax.scatter(date, model_returns.loc[date], color='#28a745', marker='^', s=100, edgecolor='black', linewidth=1.5, label='Buy' if 'Buy' not in ax.get_legend_handles_labels()[1] else "")
@@ -179,6 +208,9 @@ def plot_comparison_results(dates, model_returns, kospi_returns, buy_sell_log, s
     # log_manager.logger.info(f"Comparison results saved as {save_path}")
 
 def main_run():
+    """
+    주식 거래 시뮬레이션 실행 함수
+    """
     # log_manager.logger.info("Starting trading process")
 
     # 모델 로드

@@ -1,27 +1,37 @@
+"""
+A3C Stock Trading Training Script
+
+이 스크립트는 Asynchronous Advantage Actor-Critic (A3C) 알고리즘을 사용하여
+주식 거래 모델을 학습하는 데 사용됩니다. 주요 기능:
+- 멀티프로세싱을 활용한 병렬 학습
+- 배치 업데이트 및 글로벌-로컬 에이전트 동기화
+- 학습된 모델 저장
+
+구성:
+1. 데이터 및 환경 초기화
+2. 학습 프로세스 병렬 실행
+3. 모델 저장
+"""
+
+import random
+import pandas as pd
+import numpy as np
 import torch
 import torch.multiprocessing as mp
-import pandas as pd
+
 from Agent import A3CAgent, sync_local_to_global
 from env import StockTradingEnv
-from utils import *
-import numpy as np
-import random
-from config import *
+from utils import log_manager
+from config import ConfigLoader
 
-# 시드값 설정 함수
 def set_seeds():
     """
     모든 난수 생성기의 시드값을 각각 설정하여 일관된 결과를 생성합니다.
     """
-
     config = ConfigLoader()
-    _random_seed_value = config.get_cash_in_hand()
-    _numpy_seed_value = config.get_max_stock()
-    _torch_seed_value = config.get_trading_charge()
-
-    random_seed = _random_seed_value
-    numpy_seed = _numpy_seed_value
-    torch_seed = _torch_seed_value
+    random_seed = config.get_cash_in_hand()
+    numpy_seed = config.get_max_stock()
+    torch_seed = config.get_trading_charge()
 
     if random_seed is not None:
         random.seed(random_seed)
@@ -46,15 +56,12 @@ def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, batch_size=
         global_ep_lock (mp.Lock): 에피소드 카운터 잠금
         batch_size (int): 배치 크기
     """
-
     set_seeds()
-
     local_agent = A3CAgent(env)
     batch = []  # 배치 데이터를 저장할 리스트
 
     for _ in range(n_episodes):
         state = env.reset()
-        states, actions, rewards, dones = [], [], [], []
         while True:
             action, _ = local_agent.select_action(state)
             next_state, reward, done, _ = env.step(action)
@@ -66,10 +73,9 @@ def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, batch_size=
             if len(batch) >= batch_size:
                 # 로컬 에이전트 업데이트
                 local_agent.update_batch(batch)
-                batch = []  # 배치 초기화
-
                 # 글로벌 에이전트로 동기화
                 sync_local_to_global(global_agent, local_agent)
+                batch = []  # 배치 초기화
 
             state = next_state
             if done:
@@ -78,7 +84,7 @@ def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, batch_size=
         # 이 블록 안에 있는 코드는 다른 프로세스에서 동시에 실행되지 않도록 보장(lock)
         with global_ep_lock:
             global_ep.value += 1
-            log_manager.logger.info(f'Episode {global_ep.value} completed')
+            log_manager.logger.info("Episode %d completed", global_ep.value)
 
     # 남은 배치 데이터 처리
     if batch:
@@ -102,13 +108,13 @@ def initialize_environment_and_agent(data_path):
     """
     # 주식 데이터를 CSV 파일에서 로드
     df = pd.read_csv(data_path)
-    
+
     # 트레이딩 환경을 초기화
     env = StockTradingEnv(df)
-    
+
     # 글로벌 A3C 에이전트를 초기화
     global_agent = A3CAgent(env)
-    
+
     return env, global_agent, df
 
 

@@ -1,7 +1,13 @@
+"""
+이 파일은 Actor-Critic 모델을 정의합니다.
+이 모델은 A3C와 같은 강화 학습 알고리즘에서 사용되며,
+정책 네트워크(Actor)와 가치 네트워크(Critic)로 구성됩니다.
+"""
+
 import torch
 import torch.nn as nn
 from utils import log_manager
-from config import *
+from config import ConfigLoader
 
 class ActorCritic(nn.Module):
     def __init__(self, input_dim, action_space):

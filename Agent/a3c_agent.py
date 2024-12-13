@@ -1,24 +1,30 @@
-import torch
-import torch.optim as optim
-from torch.distributions import Categorical
+"""
+A3CAgent module for reinforcement learning.
+
+에이전트 역할
+"""
+
 import sys
 import os
 import random
 import numpy as np
+import torch
+import torch.optim as optim
+from torch.distributions import Categorical
 
 try:
     sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
-    from utils import *
-    from env import *
-    from models import *
-    from config import *
-except ImportError:    
-    from utils import *
-    from env import *
-    from models import *
-    from config import *
+    from utils import log_manager
+    from models import ActorCritic
+    from config import ConfigLoader
+except ImportError:
+    print(ImportError)
 
 class A3CAgent:
+    """
+    Actor-Critic (A3C) 에이전트 클래스
+    """
+
     def __init__(self, env, gamma=0.99, epsilon=0.05):
         """
         A3C 에이전트 초기화
@@ -34,7 +40,10 @@ class A3CAgent:
         self.env = env
         self.gamma = gamma
         self.epsilon = epsilon
-        self.model = ActorCritic(input_dim=env.observation_space.shape[0], action_space=env.action_space.n)
+        self.model = ActorCritic(
+            input_dim=env.observation_space.shape[0],
+            action_space=env.action_space.n
+        )
         self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
 
     def select_action(self, state):
@@ -64,7 +73,7 @@ class A3CAgent:
             action = m.sample()
 
             return action.item(), m.log_prob(action)
-        
+
     def compute_returns(self, rewards, dones, next_value):
         """
         주어진 보상과 에피소드 종료 여부 리스트, 그리고 다음 상태의 가치를 이용하여 반환값을 계산
@@ -109,8 +118,9 @@ class A3CAgent:
         # 모델 예측 및 손실 계산
         log_probs = []
         values = []
-        for i in range(len(states)):
-            policy, value = self.model(states[i])
+
+        for i, state in enumerate(states):
+            policy, value = self.model(state)
             m = Categorical(torch.softmax(policy, dim=-1))
             log_probs.append(m.log_prob(actions[i]))
             values.append(value)
@@ -138,8 +148,8 @@ class A3CAgent:
             path (str): 모델을 저장할 경로
         """
         torch.save(self.model.state_dict(), path)
-        log_manager.logger.info(f"Model saved to {path}")
-    
+        log_manager.logger.info("Model saved to %s", path)
+
     def load_model(self, path):
         """
         모델 로드
@@ -149,8 +159,7 @@ class A3CAgent:
         """
         self.model.load_state_dict(torch.load(path))
         self.model.eval()
-        log_manager.logger.info(f"Model loaded from {path}")
-
+        log_manager.logger.info("Model loaded from %s", path)
 
 def sync_local_to_global(global_agent, local_agent):
     """
@@ -160,9 +169,13 @@ def sync_local_to_global(global_agent, local_agent):
         global_agent (A3CAgent): 글로벌 에이전트
         local_agent (A3CAgent): 로컬 에이전트
     """
-    for global_param, local_param in zip(global_agent.model.parameters(), local_agent.model.parameters()):
+    for global_param, local_param in zip(
+        global_agent.model.parameters(),
+        local_agent.model.parameters()
+    ):
         if local_param.grad is not None:
-            global_param._grad = local_param.grad
+            global_param.grad = local_param.grad
+
     # 글로벌 모델 업데이트
     global_agent.optimizer.step()
     global_agent.optimizer.zero_grad()

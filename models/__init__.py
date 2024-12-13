@@ -1,3 +1,3 @@
-from .A3CAgent_ActorCritic import ActorCritic
+from .a3cagent_actorcritic import ActorCritic
 
 __all__ = ['ActorCritic']

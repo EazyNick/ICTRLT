@@ -1,3 +1,17 @@
+"""
+LogManager Module
+
+이 모듈은 A3C 주식 거래 프로젝트를 위한 로그 관리 클래스를 제공합니다.
+싱글톤 패턴으로 설계되어 로그 설정을 중앙에서 관리하며, 다음과 같은 주요 기능을 포함합니다:
+- 로그 파일 생성 및 관리
+- 컬러 로그 포맷 지원
+- 오래된 로그 파일 자동 정리
+
+사용 예시:
+    log_manager = LogManager()
+    log_manager.logger.info("This is an info message")
+"""
+
 import sys
 import os
 import logging
@@ -7,6 +21,11 @@ import glob
 import colorlog
 
 class LogManager:
+    """
+    로그 관리 클래스
+
+    싱글톤 패턴으로 설계되었으며, 컬러 로그 포맷 및 로그 파일 정리를 지원합니다.
+    """
     _instance = None
 
     def __new__(cls, *args, **kwargs):
@@ -15,6 +34,13 @@ class LogManager:
         return cls._instance
     
     def __init__(self, directory='D:\\ICTRLT\\utils\\Log', max_files=10):
+        """
+        LogManager 초기화
+
+        Args:
+            directory (str): 로그 파일을 저장할 디렉토리
+            max_files (int): 유지할 최대 로그 파일 개수
+        """
         if not hasattr(self, 'initialized'):  # 이 인스턴스가 초기화되었는지 확인
             self.directory = directory
             self.max_files = max_files
@@ -79,6 +105,11 @@ class LogManager:
         return self._timestamp
 
     def clean_up_logs(self):
+        """
+        오래된 로그 파일 정리
+
+        설정된 디렉토리에서 최대 파일 개수를 초과하는 오래된 로그 파일을 삭제합니다.
+        """
         # 디렉토리 내의 특정 패턴의 파일 목록을 가져옵니다.
         files = glob.glob(os.path.join(self.directory, 'main.py.log'))
 
