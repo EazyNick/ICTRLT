@@ -20,7 +20,7 @@
 
 ## A3C Stock Trading Optimization
 
-다음은 A3C 강화 학습 알고리즘을 사용하여 주식 거래를 최적화한 결과를 시각화한 그래프입니다.
+다음은 A3C 강화 학습 알고리즘을 사용하여 주식 거래를 최적화한 결과를 시각화한 그래프입니다. 주식을 보유만 하고있을 떄보다, 해당 모델을 활용했을 경우 수익률이 약 60% 더 좋은 것을 알 수 있습니다.
 
 ### 거래 결과 시각화
 ![A3C Stock Trading Results](https://github.com/EazyNick/ICTRLT/blob/241210_V1/output/Figure_1.png?raw=true)
