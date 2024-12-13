@@ -17,9 +17,9 @@ training:
   batch_size: 3
 
 seeds:
-  random: 20241211
-  numpy: 2024
-  torch: 1211
+  random: 181951
+  numpy: 585037
+  torch: 456495
 
 Logger:
   directory: D:\\ICTRLT\\utils\\Log
