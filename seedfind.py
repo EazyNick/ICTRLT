@@ -177,13 +177,14 @@ def find_optimal_seeds(agent, env, data, seed_range):
             )
 
         if count % 20 == 0:
-            log_manager.logger.info("COUNT: %d", count)
+            log_manager.logger.debug("COUNT: %d", count)
 
     return optimal_seeds, best_diff
 
 def main_run_optimal_seeds():
     """
     최적의 시드값을 탐색하고 결과를 시각화합니다.
+
     """
     # 모델 로드
     model_path = Path(__file__).resolve().parent / 'output/sp500_trading_model_2024.pth'
