@@ -220,9 +220,9 @@ def main_run():
 
     # 모델 로드
     # 삼성전자
-    model_path = Path(__file__).resolve().parent / 'output/kia_stock_trading_model_4048.pth'
-    file_path = Path(__file__).resolve().parent / 'data/data_csv/kia_stock_data.csv'
-    new_data = pd.read_csv(Path(__file__).resolve().parent / 'data/data_csv/kia_stock_testdata.csv', index_col='Date', parse_dates=True)  # 새로운 주식 데이터 로드
+    model_path = Path(__file__).resolve().parent / 'output/sp500_trading_model_2024.pth'
+    file_path = Path(__file__).resolve().parent / 'data/data_csv/sp500_training_data.csv'
+    new_data = pd.read_csv(Path(__file__).resolve().parent / 'data/data_csv/sp500_test_data.csv', index_col='Date', parse_dates=True)  # 새로운 주식 데이터 로드
     
     # 기아차
     df = pd.read_csv(file_path, index_col='Date', parse_dates=True)  # 주식 데이터 로드
@@ -270,5 +270,3 @@ def main_run():
 
 if __name__ == '__main__':
     buy_sell_log = main_run()
-    # print(f"Buy dates: {buy_sell_log}")
-    # log_manager.logger.info(f"Buy dates: {buy_sell_log}")

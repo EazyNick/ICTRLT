@@ -176,7 +176,7 @@ def find_optimal_seeds(agent, env, data, seed_range):
                 random_seed, numpy_seed, torch_seed, diff
             )
 
-        if count // 20 == 0:
+        if count % 20 == 0:
             log_manager.logger.info("COUNT: %d", count)
 
     return optimal_seeds, best_diff
@@ -186,9 +186,9 @@ def main_run_optimal_seeds():
     최적의 시드값을 탐색하고 결과를 시각화합니다.
     """
     # 모델 로드
-    model_path = Path(__file__).resolve().parent / 'output/kia_stock_trading_model_4048.pth'
-    file_path = Path(__file__).resolve().parent / 'data/data_csv/kia_stock_data.csv'
-    new_data = pd.read_csv(Path(__file__).resolve().parent / 'data/data_csv/kia_stock_testdata.csv', index_col='Date', parse_dates=True)
+    model_path = Path(__file__).resolve().parent / 'output/sp500_trading_model_2024.pth'
+    file_path = Path(__file__).resolve().parent / 'data/data_csv/sp500_training_data.csv'
+    new_data = pd.read_csv(Path(__file__).resolve().parent / 'data/data_csv/sp500_test_data.csv', index_col='Date', parse_dates=True)
     
     df = pd.read_csv(file_path, index_col='Date', parse_dates=True)
     env = StockTradingEnv(df)
