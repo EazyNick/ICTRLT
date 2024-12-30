@@ -99,15 +99,15 @@ class StockTradingEnv(gym.Env):
         current_price = self.df['Close'].values[self.current_step] * 2
         volume = self.df['Volume'].values[self.current_step] * 0.0001
 
-        # next_observation = np.concatenate((
-        #     [current_price, volume, self.cash_in_hand, self.stock_owned],
-        #     sma_values, vma_values, high_values, low_values
-        # )).astype(np.float32)
-
         next_observation = np.concatenate((
-            [current_price, self.cash_in_hand, self.stock_owned],
+            [current_price, volume, self.cash_in_hand, self.stock_owned],
             sma_values, vma_values, high_values, low_values
         )).astype(np.float32)
+
+        # next_observation = np.concatenate((
+        #     [current_price, self.cash_in_hand, self.stock_owned],
+        #     sma_values, vma_values, high_values, low_values
+        # )).astype(np.float32)
         next_observation = np.nan_to_num(next_observation, nan=0.0)  # NaN 값을 0으로 대체
         # log_manager.logger.debug(f"Next observation: {next_observation}, current_price: {current_price}")
         return next_observation

@@ -1,6 +1,6 @@
 env:
   cash_in_hand: 10000000 # 학습 시작 시 보유 현금
-  max_stock: 200 # 최대 매수, 매도 가능 주식 수
+  max_stock: 8000 # 최대 매수, 매도 가능 주식 수
   trading_charge: 0.00015 # 거래 수수료
   trading_tax: 0.002 # 거래 세금
 
