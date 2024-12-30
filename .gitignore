@@ -1,2 +1,6 @@
 # Ignore all contents of utils/Log
 utils/Log/*
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
