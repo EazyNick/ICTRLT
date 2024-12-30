@@ -92,15 +92,20 @@ class StockTradingEnv(gym.Env):
         Returns:
             np.ndarray: 현재 관찰값
         """
-        sma_values = self.df.iloc[self.current_step].filter(like='SMA').values
-        vma_values = self.df.iloc[self.current_step].filter(like='VMA').values
-        high_values = self.df.iloc[self.current_step].filter(like='High').values
-        low_values = self.df.iloc[self.current_step].filter(like='Low').values
-        current_price = self.df['Close'].values[self.current_step]
-        volume = self.df['Volume'].values[self.current_step]
+        sma_values = self.df.iloc[self.current_step].filter(like='SMA').values * 5
+        vma_values = self.df.iloc[self.current_step].filter(like='VMA').values * 0.0001
+        high_values = self.df.iloc[self.current_step].filter(like='High').values * 2.5
+        low_values = self.df.iloc[self.current_step].filter(like='Low').values * 2.5
+        current_price = self.df['Close'].values[self.current_step] * 2
+        volume = self.df['Volume'].values[self.current_step] * 0.0001
+
+        # next_observation = np.concatenate((
+        #     [current_price, volume, self.cash_in_hand, self.stock_owned],
+        #     sma_values, vma_values, high_values, low_values
+        # )).astype(np.float32)
 
         next_observation = np.concatenate((
-            [current_price, volume, self.cash_in_hand, self.stock_owned],
+            [current_price, self.cash_in_hand, self.stock_owned],
             sma_values, vma_values, high_values, low_values
         )).astype(np.float32)
         next_observation = np.nan_to_num(next_observation, nan=0.0)  # NaN 값을 0으로 대체

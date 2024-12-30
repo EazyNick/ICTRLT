@@ -12,8 +12,8 @@ ActorCritic:
     size: 512  # 은닉층의 뉴런 개수
 
 training:
-  n_processes: 4
-  n_episodes: 2024
+  n_processes: 6
+  n_episodes: 3096
   batch_size: 1
 
 seeds:

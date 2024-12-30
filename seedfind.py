@@ -176,7 +176,7 @@ def find_optimal_seeds(agent, env, data, seed_range):
                 random_seed, numpy_seed, torch_seed, diff
             )
 
-        if count % 20 == 0:
+        if count % 100 == 0:
             log_manager.logger.debug("COUNT: %d", count)
 
     return optimal_seeds, best_diff
@@ -196,7 +196,7 @@ def main_run_optimal_seeds():
     agent = A3CAgent(env)
     agent.load_model(model_path)
 
-    seed_min = 0             # 시드값 최소 범위
+    seed_min = 40600           # 시드값 최소 범위
     seed_max = 10000000      # 시드값 최대 범위
     seed_sample_count = 1000000  # 생성할 시드값 샘플 개수
 
