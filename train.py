@@ -62,9 +62,14 @@ def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, batch_size=
 
     for _ in range(n_episodes):
         state = env.reset()
+        episode_reward = 0  # 에피소드 동안 얻은 총 보상
+
         while True:
             action, _ = local_agent.select_action(state)
             next_state, reward, done, _ = env.step(action)
+
+            # 보상을 누적
+            episode_reward += reward
 
             # 데이터를 배치에 저장
             batch.append((state, action, reward, done, next_state))
@@ -84,7 +89,7 @@ def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, batch_size=
         # 이 블록 안에 있는 코드는 다른 프로세스에서 동시에 실행되지 않도록 보장(lock)
         with global_ep_lock:
             global_ep.value += 1
-            log_manager.logger.info("Episode %d completed", global_ep.value)
+            log_manager.logger.info(f"Episode {global_ep.value} completed with reward: {episode_reward}")
 
     # 남은 배치 데이터 처리
     if batch:
@@ -157,7 +162,7 @@ if __name__ == '__main__':
     set_seeds()
 
     data_path = 'data/data_csv/sp500_training_data.csv'
-    model_path = 'output/sp500_trading_model_3096.pth'
+    model_path = 'output/sp500_trading_model_9192.pth'
 
     # 환경과 에이전트 초기화
     env, global_agent, df = initialize_environment_and_agent(data_path)

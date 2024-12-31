@@ -1,6 +1,6 @@
 env:
   cash_in_hand: 10000000 # 학습 시작 시 보유 현금
-  max_stock: 8000 # 최대 매수, 매도 가능 주식 수
+  max_stock: 200 # 최대 매수, 매도 가능 주식 수
   trading_charge: 0.00015 # 거래 수수료
   trading_tax: 0.002 # 거래 세금
 
@@ -13,8 +13,8 @@ ActorCritic:
 
 training:
   n_processes: 6
-  n_episodes: 3096
-  batch_size: 1
+  n_episodes: 9096
+  batch_size: 32
 
 seeds:
   random: 347602

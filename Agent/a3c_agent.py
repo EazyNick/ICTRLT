@@ -25,7 +25,7 @@ class A3CAgent:
     Actor-Critic (A3C) 에이전트 클래스
     """
 
-    def __init__(self, env, gamma=0.99, epsilon=0.05):
+    def __init__(self, env, gamma=0.99, epsilon=0.2):
         """
         A3C 에이전트 초기화
 
@@ -60,6 +60,7 @@ class A3CAgent:
         if random.random() < self.epsilon:
             action = random.randint(0, self.env.action_space.n - 1)
             log_prob = torch.log(torch.tensor(1.0 / self.env.action_space.n))
+            self.epsilon = max(self.epsilon * 0.999, 0.01)  # 탐험 감소
             return action, log_prob
         else:
             state = torch.from_numpy(state).float()

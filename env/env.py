@@ -8,6 +8,7 @@ import gym
 from gym import spaces
 import numpy as np
 import pandas as pd
+import random
 
 try:
     sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
@@ -33,7 +34,8 @@ class StockTradingEnv(gym.Env):
         self.config = ConfigLoader()
         self.df = df
         self.current_step = 0
-        self.cash_in_hand = self.config.get_cash_in_hand()  # 초기 현금
+        self.cash_in_hand = random.uniform(self.config.get_cash_in_hand() * 0.8, self.config.get_cash_in_hand() * 1.2)
+        self.previous_cash_in_hand = self.cash_in_hand  # 이전 현금 초기화
         self.stock_owned = 0  # 초기 주식 보유량
         self.max_stock = self.config.get_max_stock()  # 한 번에 매수/매도 가능한 최대 주식 수
         self.trading_charge = self.config.get_trading_charge()  # 거래 수수료
@@ -92,12 +94,20 @@ class StockTradingEnv(gym.Env):
         Returns:
             np.ndarray: 현재 관찰값
         """
-        sma_values = self.df.iloc[self.current_step].filter(like='SMA').values * 5
-        vma_values = self.df.iloc[self.current_step].filter(like='VMA').values * 0.0001
-        high_values = self.df.iloc[self.current_step].filter(like='High').values * 2.5
-        low_values = self.df.iloc[self.current_step].filter(like='Low').values * 2.5
-        current_price = self.df['Close'].values[self.current_step] * 2
-        volume = self.df['Volume'].values[self.current_step] * 0.0001
+        sma_values = self.df.iloc[self.current_step].filter(like='SMA').values
+        vma_values = self.df.iloc[self.current_step].filter(like='VMA').values
+        high_values = self.df.iloc[self.current_step].filter(like='High').values
+        low_values = self.df.iloc[self.current_step].filter(like='Low').values
+        current_price = self.df['Close'].values[self.current_step]
+        volume = self.df['Volume'].values[self.current_step]
+
+        # 데이터 정규화 (0~1 스케일)
+        # sma_values = self.df.iloc[self.current_step].filter(like='SMA').values / self.df['Close'].max()
+        # vma_values = self.df.iloc[self.current_step].filter(like='VMA').values / self.df['Volume'].max()
+        # high_values = self.df.iloc[self.current_step].filter(like='High').values / self.df['Close'].max()
+        # low_values = self.df.iloc[self.current_step].filter(like='Low').values / self.df['Close'].max()
+        # current_price = self.df['Close'].values[self.current_step] / self.df['Close'].max()
+        # volume = self.df['Volume'].values[self.current_step] / self.df['Volume'].max()
 
         next_observation = np.concatenate((
             [current_price, volume, self.cash_in_hand, self.stock_owned],
@@ -152,17 +162,27 @@ class StockTradingEnv(gym.Env):
         
         # log_manager.logger.debug(f"Stock owned: {self.stock_owned}, Cash in hand: {self.cash_in_hand}")
 
+        # 이전 총 자산
+        previous_total_asset = self.stock_owned * self.df['Close'].values[self.current_step - 1] + self.previous_cash_in_hand
+
+        # 현재 총 자산
+        current_total_asset = self.stock_owned * current_price + self.cash_in_hand
+
+        # 보상을 총 자산의 변화로 계산
+        reward = current_total_asset - previous_total_asset
+
+        reward = max(reward, -1.0)  # 최대 손실 -1로 제한
+
+        # 현재 현금을 이전 현금으로 업데이트
+        self.previous_cash_in_hand = self.cash_in_hand
+
+        # log_manager.logger.debug(f"Step: {self.current_step}, Action: {action}, Reward: {reward}")
+
         self.current_step += 1
-        done = self.current_step >= len(self.df) - 1
+        done = self.current_step >= len(self.df) - 1 or current_total_asset <= 0
         # log_manager.logger.debug(f"done {done}")
         # if done:
         #     log_manager.logger.info(f"Episode finished")
-
-        reward = self.stock_owned * current_price + self.cash_in_hand
-
-        if reward < self.cash_in_hand:
-            reward = self.cash_in_hand  # 매도 후 이상 값 방지
-            log_manager.logger.info("Reward: %s", reward)
 
         next_observation = self._next_observation()
         # log_manager.logger.debug(f"Next observation: {next_observation}")
