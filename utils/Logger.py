@@ -111,7 +111,7 @@ class LogManager:
         설정된 디렉토리에서 최대 파일 개수를 초과하는 오래된 로그 파일을 삭제합니다.
         """
         # 디렉토리 내의 특정 패턴의 파일 목록을 가져옵니다.
-        files = glob.glob(os.path.join(self.directory, 'main.py.log'))
+        files = glob.glob(os.path.join(self.directory, '*.log'))
 
         # 파일을 생성 시간에 따라 정렬합니다.
         files.sort(key=os.path.getmtime)

@@ -54,7 +54,7 @@ class StockTradingEnv(gym.Env):
         # 잔고, 주식 보유량을 포함한 관찰 공간 정의
         self.observation_space = spaces.Box(
             low=0, high=np.inf,
-            shape=(3 + num_sma + num_vma + num_high + num_low + 1,),
+            shape=(5 + num_sma + num_vma + num_high + num_low,),
             dtype=np.float32
         )
 
@@ -74,6 +74,7 @@ class StockTradingEnv(gym.Env):
         # log_manager.logger.info(f"Environment reset start")
         self.current_step = 0
         self.cash_in_hand = self.config.get_cash_in_hand()  # 초기 현금
+        self.previous_cash_in_hand = self.cash_in_hand  # 초기 이전 현금을 현재 현금으로 설정
         self.stock_owned = 0  # 초기 주식 보유량
 
         if new_df is not None:
@@ -110,7 +111,7 @@ class StockTradingEnv(gym.Env):
         # volume = self.df['Volume'].values[self.current_step] / self.df['Volume'].max()
 
         next_observation = np.concatenate((
-            [current_price, volume, self.cash_in_hand, self.stock_owned],
+            [current_price, volume, self.cash_in_hand, self.previous_cash_in_hand, self.stock_owned],
             sma_values, vma_values, high_values, low_values
         )).astype(np.float32)
 
@@ -137,18 +138,8 @@ class StockTradingEnv(gym.Env):
         # log_manager.logger.debug(f"Current price: {current_price}")
 
         if action < self.max_stock:
-            # 매도: 보유한 주식 내에서만 매도 가능
-            num_stocks_to_sell = max(0, min(action, self.stock_owned))
-            if num_stocks_to_sell > 0:
-                self.cash_in_hand += num_stocks_to_sell * current_price * (1 - self.trading_charge - self.trading_tax)
-                self.stock_owned -= num_stocks_to_sell
-                self.buy_sell_log.append((self.df.index[self.current_step], 'sell', num_stocks_to_sell, current_price))
-                # log_manager.logger.info(f"{num_stocks_to_sell}주 매도")
-
-        elif action > self.max_stock:
             # 매수: 현금 내에서만 매수 가능
-            num_stocks_to_buy = max(0, min(
-                action - self.max_stock,
+            num_stocks_to_buy = max(0, min(action, 
                 self.cash_in_hand // (current_price * (1 + self.trading_charge))
             ))
             if num_stocks_to_buy > 0:  # 실제 매수가 발생한 경우에만 로그 기록
@@ -156,10 +147,20 @@ class StockTradingEnv(gym.Env):
                 self.stock_owned += num_stocks_to_buy
                 self.cash_in_hand -= cost
                 self.buy_sell_log.append((self.df.index[self.current_step], 'buy', num_stocks_to_buy, current_price))
-            # if num_stocks_to_buy != 0:
-            #     log_manager.logger.info(f"{num_stocks_to_buy}주 매수")
+                # log_manager.logger.debug(f"Step: {self.current_step}, Action: Buy, Stocks Bought: {num_stocks_to_buy}, Stock Owned: {self.stock_owned}, Cash: {self.cash_in_hand}")
 
-        
+        elif action > self.max_stock:
+            # 매도: 보유한 주식 내에서만 매도 가능
+            num_stocks_to_sell = max(0, min(action - self.max_stock, self.stock_owned))
+            if num_stocks_to_sell > 0:
+                self.cash_in_hand += num_stocks_to_sell * current_price * (1 - self.trading_charge - self.trading_tax)
+                self.stock_owned -= num_stocks_to_sell
+                self.buy_sell_log.append((self.df.index[self.current_step], 'sell', num_stocks_to_sell, current_price))
+                # log_manager.logger.debug(f"Step: {self.current_step}, Action: Sell, Stocks Sold: {num_stocks_to_sell}, Stock Owned: {self.stock_owned}, Cash: {self.cash_in_hand}")
+                # if num_stocks_to_buy != 0:
+                #    log_manager.logger.info(f"{num_stocks_to_buy}주 매수")
+
+            
         # log_manager.logger.debug(f"Stock owned: {self.stock_owned}, Cash in hand: {self.cash_in_hand}")
 
         # 이전 총 자산
@@ -167,6 +168,8 @@ class StockTradingEnv(gym.Env):
 
         # 현재 총 자산
         current_total_asset = self.stock_owned * current_price + self.cash_in_hand
+
+        # log_manager.logger.debug(f"current_total_asset: {current_total_asset}, previous_total_asset: {previous_total_asset}")
 
         # 보상을 총 자산의 변화로 계산
         reward = current_total_asset - previous_total_asset

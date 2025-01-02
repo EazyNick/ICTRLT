@@ -79,14 +79,13 @@ def run_trading(agent, env, new_data):
         next_state, reward, done, _ = env.step(action)  # 다음 상태와 보상 얻기
 
         state = next_state  # 상태 업데이트
-        
-        account_value = reward
-        # account_value = state[1] + state[0] * env.stock_owned  # 현금 잔고 + (보유 주식 * 주식 가격)
+
+        account_value = state[2] + state[0] * env.stock_owned  # 현금 잔고 + (보유 주식 * 주식 가격)
         account_values.append(account_value)
         stock_prices.append(state[0])  # 현재 주식 가격 기록
         stock_owned_log.append(env.stock_owned)  # 현재 주식 보유량 기록
         dates.append(env.df.index[env.current_step])  # 날짜 기록
-        
+
         # 추가 로그
         # log_manager.logger.debug(f"Step: {env.current_step}, Stock Price: {state[0]}, Account Value: {account_value}, Stocks Owned: {env.stock_owned}, Cash in Hand: {state[1]}")
         
@@ -117,6 +116,9 @@ def plot_trading_results(
     # 초기 값 설정
     initial_account_value = account_values[0]
     initial_stock_price = stock_prices[0]
+
+    log_manager.logger.info(f"Initial account value: {account_values[0]}")
+    log_manager.logger.info(f"Initial stock price: {stock_prices[0]}")
 
     # 계좌 수익률 계산
     portfolio_returns = [(value / initial_account_value - 1) * 100 for value in account_values]
@@ -220,7 +222,7 @@ def main_run():
 
     # 모델 로드
     # 삼성전자
-    model_path = Path(__file__).resolve().parent / 'output/sp500_trading_model_3096.pth'
+    model_path = Path(__file__).resolve().parent / 'output/sp500_trading_model_9192.pth'
     file_path = Path(__file__).resolve().parent / 'data/data_csv/sp500_training_data.csv'
     new_data = pd.read_csv(Path(__file__).resolve().parent / 'data/data_csv/sp500_test_data.csv', index_col='Date', parse_dates=True)  # 새로운 주식 데이터 로드
     
