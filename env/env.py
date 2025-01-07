@@ -42,7 +42,7 @@ class StockTradingEnv(gym.Env):
         self.trading_tax = self.config.get_trading_tax()  # 거래세
 
         # 행동: 0~(2*max_stock) (매도 0~max_stock, 유지 max_stock, 매수 max_stock+1~2*max_stock)
-        self.action_space = spaces.Discrete(2 * max_stock + 1)
+        self.action_space = spaces.Discrete(self.max_stock + 1)
         # log_manager.logger.info(f"Action space: {self.action_space}")
 
         # 관찰 공간 정의
@@ -158,9 +158,8 @@ class StockTradingEnv(gym.Env):
                 self.buy_sell_log.append((self.df.index[self.current_step], 'sell', num_stocks_to_sell, current_price))
                 # log_manager.logger.debug(f"Step: {self.current_step}, Action: Sell, Stocks Sold: {num_stocks_to_sell}, Stock Owned: {self.stock_owned}, Cash: {self.cash_in_hand}")
                 # if num_stocks_to_buy != 0:
-                #    log_manager.logger.info(f"{num_stocks_to_buy}주 매수")
+                # log_manager.logger.info(f"{num_stocks_to_buy}주 매도")
 
-            
         # log_manager.logger.debug(f"Stock owned: {self.stock_owned}, Cash in hand: {self.cash_in_hand}")
 
         # 이전 총 자산
@@ -210,3 +209,17 @@ class StockTradingEnv(gym.Env):
             # log_manager.logger.info(f'Step: {self.current_step}, Profit: {profit}')
         else:
             raise NotImplementedError(f"Render mode '{mode}' is not supported.")
+
+if __name__ == '__main__':
+    import random
+    from pathlib import Path
+    import pandas as pd
+    import numpy as np
+    from config import ConfigLoader
+    import random
+    file_path = Path(__file__).resolve().parent.parent / 'data/data_csv/sp500_training_data.csv'
+    df = pd.read_csv(file_path, index_col='Date', parse_dates=True)  # 주식 데이터 로드
+    test = StockTradingEnv(df)
+    for i in range(10000):
+        random_action = test.action_space.sample()  # 랜덤 액션 생성
+        log_manager.logger.debug(f"Random action: {random_action}")

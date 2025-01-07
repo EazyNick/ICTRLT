@@ -33,7 +33,7 @@ class LogManager:
             cls._instance = super(LogManager, cls).__new__(cls, *args, **kwargs)
         return cls._instance
     
-    def __init__(self, directory='D:\\ICTRLT\\utils\\Log', max_files=10):
+    def __init__(self, directory='D:\\ICTRLT\\utils\\Log', max_files=20):
         """
         LogManager 초기화
 
