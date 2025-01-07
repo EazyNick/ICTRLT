@@ -187,7 +187,7 @@ def main_run_optimal_seeds():
 
     """
     # 모델 로드
-    model_path = Path(__file__).resolve().parent / 'output/sp500_trading_model_2024.pth'
+    model_path = Path(__file__).resolve().parent / 'output/sp500_trading_model_9192.pth'
     file_path = Path(__file__).resolve().parent / 'data/data_csv/sp500_training_data.csv'
     new_data = pd.read_csv(Path(__file__).resolve().parent / 'data/data_csv/sp500_test_data.csv', index_col='Date', parse_dates=True)
     
@@ -196,7 +196,7 @@ def main_run_optimal_seeds():
     agent = A3CAgent(env)
     agent.load_model(model_path)
 
-    seed_min = 40600           # 시드값 최소 범위
+    seed_min = 0           # 시드값 최소 범위
     seed_max = 10000000      # 시드값 최대 범위
     seed_sample_count = 1000000  # 생성할 시드값 샘플 개수
 

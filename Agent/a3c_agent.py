@@ -15,7 +15,7 @@ from torch.distributions import Categorical
 try:
     sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
     from utils import log_manager
-    from models import ActorCritic
+    from models import ActorCritic, EnhancedActorCritic
     from config import ConfigLoader
 except ImportError:
     print(ImportError)
@@ -40,7 +40,20 @@ class A3CAgent:
         self.env = env
         self.gamma = gamma
         self.epsilon = epsilon
-        self.model = ActorCritic(
+
+        MODEL_CLASSES = {
+            "ActorCritic": ActorCritic,
+            "EnhancedActorCritic": EnhancedActorCritic,
+            # 필요하면 추가 모델 정의
+        }
+
+        # 모델 이름 가져오기
+        model_name = ConfigLoader.get_model_name()
+
+        # 모델 클래스 매핑에서 선택
+        ModelClass = MODEL_CLASSES.get(model_name, ActorCritic)  # 기본값 ActorCritic
+
+        self.model = ModelClass(
             input_dim=env.observation_space.shape[0],
             action_space=env.action_space.n
         )

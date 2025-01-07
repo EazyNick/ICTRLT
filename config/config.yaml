@@ -5,21 +5,25 @@ env:
   trading_tax: 0.002 # 거래 세금
 
 A3CAgent:
-  Learning Rate: 0.001 # 학습률
+  Learning Rate: 0.002 # 학습률
 
-ActorCritic:
-  hidden_layer:
-    size: 512  # 은닉층의 뉴런 개수
+model:
+  name: EnhancedActorCritic # ActorCritic, EnhancedActorCritic
+  parameters:
+    hidden_layer: 1024 # 은닉층의 뉴런 개수(단층 신경망)
+    hidden1_size: 512 # 첫 번째 은닉층 뉴런 개수
+    hidden2_size: 256 # 두 번째 은닉층 뉴런 개수
+    dropout_rate: 0.2 # 드롭아웃 비율
 
 training:
-  n_processes: 6
-  n_episodes: 9096
+  n_processes: 4
+  n_episodes: 16
   batch_size: 16
 
 seeds:
-  random: 347602
-  numpy: 977378
-  torch: 814199
+  random: 9822234
+  numpy: 6482355
+  torch: 9120972
 
 Logger:
   directory: D:\\ICTRLT\\utils\\Log
