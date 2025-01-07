@@ -27,7 +27,8 @@ class ActorCritic(nn.Module):
         """
         super(ActorCritic, self).__init__()
         self.hidden_layer_size = ConfigLoader.get_hidden_layer_size()
-        
+        log_manager.logger.info("Initializing BasicActorCritic")
+
         self.fc = nn.Linear(input_dim, self.hidden_layer_size) # 입력층 -> 은닉층
         # 정책 업데이트 (Actor)
         self.policy = nn.Linear(self.hidden_layer_size, action_space)  # 은닉층 -> 정책 (행동)
@@ -65,7 +66,7 @@ class EnhancedActorCritic(nn.Module):
             action_space (int): 행동 공간의 크기 (매수/매도/홀딩 등)
         """
         super(EnhancedActorCritic, self).__init__()
-        
+        log_manager.logger.info("Initializing EnhancedActorCritic")
         # 설정값
         self.hidden1_size = ConfigLoader.get_hidden1_size() 
         self.hidden2_size = ConfigLoader.get_hidden2_size()
