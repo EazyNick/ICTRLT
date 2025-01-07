@@ -21,7 +21,7 @@ class StockTradingEnv(gym.Env):
     """
     주식 거래 환경을 정의하는 클래스.
     """
-    def __init__(self, df, max_stock=200, trading_charge=0.00015, trading_tax=0.002):
+    def __init__(self, df):
         """
         주식 데이터프레임 df를 입력으로 받아 환경을 초기화
 

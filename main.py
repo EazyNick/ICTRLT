@@ -221,8 +221,7 @@ def main_run():
     # log_manager.logger.info("Starting trading process")
 
     # 모델 로드
-    # 삼성전자
-    model_path = Path(__file__).resolve().parent / 'output/sp500_trading_model_4096.pth'
+    model_path = Path(__file__).resolve().parent / 'output/sp500_trading_model_9192.pth'
     file_path = Path(__file__).resolve().parent / 'data/data_csv/sp500_training_data.csv'
     new_data = pd.read_csv(Path(__file__).resolve().parent / 'data/data_csv/sp500_test_data.csv', index_col='Date', parse_dates=True)  # 새로운 주식 데이터 로드
     
