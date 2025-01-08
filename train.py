@@ -79,7 +79,8 @@ def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, batch_size=
                 # 로컬 에이전트 업데이트
                 local_agent.update_batch(batch)
                 # 글로벌 에이전트로 동기화
-                sync_local_to_global(global_agent, local_agent)
+                sync_local_to_global(global_agent, local_agent) # 로컬 -> 글로벌
+                local_agent.model.load_state_dict(global_agent.model.state_dict())  # 글로벌 -> 로컬 동기화 보장
                 batch = []  # 배치 초기화
 
             state = next_state
@@ -95,6 +96,7 @@ def worker(global_agent, env, n_episodes, global_ep, global_ep_lock, batch_size=
     if batch:
         local_agent.update_batch(batch)
         sync_local_to_global(global_agent, local_agent)
+        local_agent.model.load_state_dict(global_agent.model.state_dict())  # 동기화 보장
 
 # --------------------------------------------------------------------------------------------------------
 # 모델 학습 시작과 관련된 코드

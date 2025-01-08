@@ -42,7 +42,7 @@ class StockTradingEnv(gym.Env):
         self.trading_tax = self.config.get_trading_tax()  # 거래세
 
         # 행동: 0~(2*max_stock) (매도 0~max_stock, 유지 max_stock, 매수 max_stock+1~2*max_stock)
-        self.action_space = spaces.Discrete(self.max_stock + 1)
+        self.action_space = spaces.Discrete(2 * self.max_stock + 1)
         # log_manager.logger.info(f"Action space: {self.action_space}")
 
         # 관찰 공간 정의
