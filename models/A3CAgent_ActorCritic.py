@@ -27,7 +27,7 @@ class ActorCritic(nn.Module):
         """
         super(ActorCritic, self).__init__()
         self.hidden_layer_size = ConfigLoader.get_hidden_layer_size()
-        log_manager.logger.info("Initializing BasicActorCritic")
+        log_manager.logger.info("Initializing ActorCritic")
 
         self.fc = nn.Linear(input_dim, self.hidden_layer_size) # 입력층 -> 은닉층
         # 정책 업데이트 (Actor)
