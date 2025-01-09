@@ -79,10 +79,15 @@ class A3CAgent:
         else:
             state = torch.from_numpy(state).float()
             policy, _ = self.model(state)
-            policy = torch.softmax(policy, dim=-1)
-            # 클램핑(정책 값이 1에 너무 가깝거나, 0에 너무 가까운 극단적인 경우 제외)과 정규화 추가
-            policy = policy.clamp(min=1e-5, max=1-1e-5)  # 클램핑 범위를 확장
-            policy = policy / policy.sum()
+           # 수정되어야 할 순서
+            policy = torch.clamp(policy, -20, 20)  # 로짓값을 클램핑
+            policy = torch.softmax(policy, dim=-1)  # 그 다음 확률로 변환
+            policy = policy / policy.sum()  # 확률 정규화 보장
+            if torch.isnan(policy).any() or torch.isinf(policy).any():
+                log_manager.logger.error(f"NaN or Inf detected in policy: {policy}")
+            # 값이 너무 작아 부동소수점들 모여있을 경우, 1보다 약간 클 수도 있음.
+            if not torch.isclose(policy.sum(), torch.tensor(1.0), atol=1e-5):
+                raise ValueError("Policy probabilities do not sum to 1.")
 
             m = Categorical(policy)
             action = m.sample()
@@ -112,7 +117,7 @@ class A3CAgent:
 
     def update_batch(self, batch):
         """
-        글로벌 모델에서 배치 업데이트를 수행합니다.
+        로컬 에이전트 모델에서 배치 업데이트를 수행합니다.
 
         Args:
             batch (list): 여러 워커에서 수집한 배치 데이터 (states, actions, rewards, dones, next_states).
@@ -136,9 +141,22 @@ class A3CAgent:
 
         for i, state in enumerate(states):
             policy, value = self.model(state)
-            m = Categorical(torch.softmax(policy, dim=-1))
+            # softmax 적용 전에 클리핑
+            policy = torch.clamp(policy, -20, 20)  # 극단적인 값 방지, 신경망의 출력값이 너무 크거나 작은 극단적인 값(-20보다 작거나 20보다 큰)이 되는 것을 방지
+            policy = torch.softmax(policy, dim=-1)
+            policy = policy.clamp(min=1e-7, max=1-1e-7)
+            policy = policy / policy.sum()
+            # 두 값(스칼라나 텐서)이 특정 허용 오차(atol) 이내에서 같은지 비교
+            if not torch.isclose(policy.sum(), torch.tensor(1.0), atol=1e-5):
+                log_manager.logger.error(f"Invalid policy: {policy}, sum: {policy.sum()}")
+                raise ValueError("Policy probabilities do not sum to 1.")
+            m = Categorical(policy)
             log_probs.append(m.log_prob(actions[i]))
             values.append(value)
+
+            # m = Categorical(torch.softmax(policy, dim=-1))
+            # log_probs.append(m.log_prob(actions[i]))
+            # values.append(value)
 
         values = torch.stack(values).squeeze()
         returns = torch.tensor(returns, dtype=torch.float32)
