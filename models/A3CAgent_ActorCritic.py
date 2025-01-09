@@ -24,7 +24,7 @@ class ActorCritic(nn.Module):
         [입력층]                [은닉층]                  [출력층]
         (input_dim)  ->   (128개의 은닉 노드)  ->  (policy: action_space) 
                                               ->  (value: 1)
-        """forward
+        """
         super(ActorCritic, self).__init__()
         self.hidden_layer_size = ConfigLoader.get_hidden_layer_size()
         log_manager.logger.info("Initializing ActorCritic")
