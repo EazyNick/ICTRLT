@@ -24,7 +24,7 @@ class ActorCritic(nn.Module):
         [입력층]                [은닉층]                  [출력층]
         (input_dim)  ->   (128개의 은닉 노드)  ->  (policy: action_space) 
                                               ->  (value: 1)
-        """
+        """forward
         super(ActorCritic, self).__init__()
         self.hidden_layer_size = ConfigLoader.get_hidden_layer_size()
         log_manager.logger.info("Initializing ActorCritic")
@@ -49,6 +49,7 @@ class ActorCritic(nn.Module):
         # log_manager.logger.debug("ActorCritic forward ...")
         x = torch.relu(self.fc(x))  # 은닉층 활성화 함수로 ReLU 사용
         policy = self.policy(x)  # 행동 확률 분포
+        policy = torch.clamp(policy, -20, 20)
         value = self.value(x)  # 상태 가치
         return policy, value
 
@@ -126,7 +127,10 @@ class EnhancedActorCritic(nn.Module):
         # Actor 경로 (Skip Connection 포함)
         actor = F.relu(self.actor_norm(self.actor_fc1(x2)) + x2)
         actor = self.dropout(actor)
-        policy = F.softmax(self.actor_output(actor), dim=-1)
+        # 클리핑 추가
+        actor = self.actor_output(actor)
+        actor = torch.clamp(actor, -20, 20)  # 극단적인 값 방지
+        policy = F.softmax(actor, dim=-1)
         
         # Critic 경로 (Skip Connection 포함)
         critic = F.relu(self.critic_norm(self.critic_fc1(x2)) + x2)
