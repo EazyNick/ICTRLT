@@ -182,7 +182,7 @@ if __name__ == '__main__':
     set_seeds()
 
     data_path = 'data/data_csv/sp500_training_data.csv'
-    model_path = 'output/sp500_trading_model_9192.pth'
+    model_path = 'output/sp500_trading_model_512.pth'
 
     # 환경과 에이전트 초기화
     global_agent = initialize_environment_and_agent(data_path)
