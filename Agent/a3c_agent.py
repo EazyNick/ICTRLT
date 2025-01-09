@@ -215,3 +215,4 @@ def sync_local_to_global(global_agent, local_agent):
 
     # 로컬 모델을 글로벌 모델의 파라미터로 동기화
     local_agent.model.load_state_dict(global_agent.model.state_dict())
+    log_manager.logger.info(f"로컬 -> 글로벌 모델 동기화")

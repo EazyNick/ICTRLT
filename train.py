@@ -108,6 +108,7 @@ def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch
             if global_ep.value % sync_interval == 0:
                 sync_local_to_global(global_agent, local_agent) # 로컬 -> 글로벌
                 local_agent.model.load_state_dict(global_agent.model.state_dict())  # 글로벌 -> 로컬 동기화 보장
+                log_manager.logger.info(f"글로벌 -> 로컬 모델 동기화")
         
     # 남은 배치 데이터 처리
     if batch:
