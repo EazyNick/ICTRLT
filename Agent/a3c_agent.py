@@ -25,7 +25,7 @@ class A3CAgent:
     Actor-Critic (A3C) 에이전트 클래스
     """
 
-    def __init__(self, env, gamma=0.99, epsilon=0.2):
+    def __init__(self, env, gamma=0.99, epsilon=0.4):
         """
         A3C 에이전트 초기화
 
@@ -73,19 +73,20 @@ class A3CAgent:
         if random.random() < self.epsilon:
             action = random.randint(0, self.env.action_space.n - 1)
             log_prob = torch.log(torch.tensor(1.0 / self.env.action_space.n))
-            self.epsilon = max(self.epsilon * 0.999, 0.01)  # 탐험 감소
+            self.epsilon = max(self.epsilon * 0.999, 0.1)  # 탐험 감소
+            # log_manager.logger.debug(f"랜덤할 때: Process {os.getpid()} Action: {action}, Epsilon: {self.epsilon}")
             return action, log_prob
         else:
             state = torch.from_numpy(state).float()
             policy, _ = self.model(state)
             policy = torch.softmax(policy, dim=-1)
             # 클램핑(정책 값이 1에 너무 가깝거나, 0에 너무 가까운 극단적인 경우 제외)과 정규화 추가
-            policy = policy.clamp(min=1e-10, max=1-1e-10)
+            policy = policy.clamp(min=1e-5, max=1-1e-5)  # 클램핑 범위를 확장
             policy = policy / policy.sum()
 
             m = Categorical(policy)
             action = m.sample()
-
+            # log_manager.logger.debug(f"랜덤하지 않을 때: Process {os.getpid()} Action: {action}, Epsilon: {self.epsilon}")
             return action.item(), m.log_prob(action)
 
     def compute_returns(self, rewards, dones, next_value):

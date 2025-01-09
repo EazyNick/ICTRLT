@@ -34,7 +34,7 @@ class StockTradingEnv(gym.Env):
         self.config = ConfigLoader()
         self.df = df
         self.current_step = 0
-        self.cash_in_hand = random.uniform(self.config.get_cash_in_hand() * 0.8, self.config.get_cash_in_hand() * 1.2)
+        self.cash_in_hand = self.config.get_cash_in_hand()
         self.previous_cash_in_hand = self.cash_in_hand  # 이전 현금 초기화
         self.stock_owned = 0  # 초기 주식 보유량
         self.max_stock = self.config.get_max_stock()  # 한 번에 매수/매도 가능한 최대 주식 수
