@@ -17,7 +17,7 @@ model:
 
 training:
   n_processes: 6
-  n_episodes: 512
+  n_episodes: 9196
   batch_size: 16
 
 seeds:
