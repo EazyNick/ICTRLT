@@ -68,7 +68,7 @@ def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch
     #         param.add_(noise)
 
     batch = []  # 배치 데이터를 저장할 리스트
-    sync_interval = 8  # 5 에피소드마다 글로벌 동기화 수행
+    sync_interval = 24  # 5 에피소드마다 글로벌 동기화 수행
 
     for _ in range(n_episodes):
         state = env.reset()
@@ -107,8 +107,6 @@ def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch
             # sync_local_to_global(global_agent, local_agent)
             if global_ep.value % sync_interval == 0:
                 sync_local_to_global(global_agent, local_agent) # 로컬 -> 글로벌
-                local_agent.model.load_state_dict(global_agent.model.state_dict())  # 글로벌 -> 로컬 동기화 보장
-                log_manager.logger.info(f"글로벌 -> 로컬 모델 동기화")
         
     # 남은 배치 데이터 처리
     if batch:
@@ -182,7 +180,7 @@ if __name__ == '__main__':
     set_seeds()
 
     data_path = 'data/data_csv/sp500_training_data.csv'
-    model_path = 'output/sp500_trading_model_512.pth'
+    model_path = 'output/sp500_trading_model_9196.pth'
 
     # 환경과 에이전트 초기화
     global_agent = initialize_environment_and_agent(data_path)
