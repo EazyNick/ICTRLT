@@ -18,6 +18,7 @@ import pandas as pd
 import numpy as np
 import torch
 import torch.multiprocessing as mp
+from torch.utils.tensorboard import SummaryWriter
 
 from Agent import A3CAgent, sync_local_to_global
 from env import StockTradingEnv
@@ -44,7 +45,7 @@ def set_seeds():
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(torch_seed)
 
-def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch_size=32):
+def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch_size=32, writer=None, process_id=0):
     """
     학습 작업자 함수
 
@@ -55,6 +56,8 @@ def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch
         global_ep (mp.Value): 글로벌 에피소드 카운터
         global_ep_lock (mp.Lock): 에피소드 카운터 잠금
         batch_size (int): 배치 크기
+        writer (SummaryWriter): TensorBoard writer 객체
+        process_id (int): 프로세스 ID (TensorBoard 로깅 구분용)
     """
     # set_seeds()
     df = pd.read_csv(data_path)
@@ -77,12 +80,14 @@ def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch
 
         # state = env._get_observation()  # 현재 상태 얻기
         episode_reward = 0  # 에피소드 동안 얻은 총 보상
+        step_count = 0
         while True:
             action, _ = local_agent.select_action(state)
             next_state, reward, done, _ = env.step(action)
         
             # 보상을 누적
             episode_reward += reward
+            step_count += 1
 
             # 데이터를 배치에 저장
             batch.append((state, action, reward, done, next_state))
@@ -105,6 +110,10 @@ def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch
             global_ep.value += 1
             log_manager.logger.info(f"Episode {global_ep.value} completed with reward: {episode_reward}")
             # sync_local_to_global(global_agent, local_agent)
+            # TensorBoard에 로그 추가
+            if writer:
+                writer.add_scalar(f'Process_{process_id}/Reward', episode_reward, global_ep.value)
+                writer.add_scalar(f'Process_{process_id}/Steps', step_count, global_ep.value)
             if global_ep.value % sync_interval == 0:
                 sync_local_to_global(global_agent, local_agent) # 로컬 -> 글로벌
         
@@ -125,9 +134,7 @@ def initialize_environment_and_agent(data_path):
         data_path (str): 주식 데이터가 포함된 CSV 파일 경로.
 
     Returns:
-        env (StockTradingEnv): 초기화된 트레이딩 환경.
         global_agent (A3CAgent): 초기화된 글로벌 A3C 에이전트.
-        df (pd.DataFrame): 주식 데이터를 포함한 DataFrame.
     """
     # 주식 데이터를 CSV 파일에서 로드
     df = pd.read_csv(data_path)
@@ -141,7 +148,7 @@ def initialize_environment_and_agent(data_path):
     return global_agent
 
 
-def start_training(global_agent, data_path, n_processes=4, n_episodes=8, batch_size=32):
+def start_training(global_agent, data_path, n_processes=4, n_episodes=8, batch_size=32, writer=None):
     """
     여러 프로세스를 사용하여 학습 프로세스를 시작합니다.
 
@@ -151,6 +158,7 @@ def start_training(global_agent, data_path, n_processes=4, n_episodes=8, batch_s
         n_processes (int): 학습에 사용할 프로세스 수.
         n_episodes (int): 학습할 총 에피소드 수.
         batch_size (int): 배치 크기.
+        writer (SummaryWriter): TensorBoard writer 객체.
     """
     global_ep = mp.Value('i', 0)
     global_ep_lock = mp.Lock()
@@ -158,7 +166,10 @@ def start_training(global_agent, data_path, n_processes=4, n_episodes=8, batch_s
     processes = []
     episodes_per_process = n_episodes // n_processes
     for process_num in range(n_processes):
-        p = mp.Process(target=worker, args=(global_agent, data_path, episodes_per_process, global_ep, global_ep_lock, batch_size))
+        p = mp.Process(
+            target=worker,
+            args=(global_agent, data_path, episodes_per_process, global_ep, global_ep_lock, batch_size, writer, process_num)
+        )
         p.start()
         processes.append(p)
 
@@ -175,7 +186,21 @@ def save_trained_model(global_agent, model_path):
     """
     global_agent.save_model(model_path)
 
+# TensorBoard 로그 초기화
+def initialize_tensorboard(log_dir):
+    """
+    TensorBoard SummaryWriter를 초기화합니다.
+
+    Args:
+        log_dir (str): TensorBoard 로그 파일을 저장할 디렉터리 경로.
+
+    Returns:
+        SummaryWriter: TensorBoard writer 객체.
+    """
+    return SummaryWriter(log_dir)
+
 if __name__ == '__main__':
+    import os
 
     set_seeds()
 
@@ -190,10 +215,17 @@ if __name__ == '__main__':
     n_episodes = config.get_n_episodes()
     batch_size = config.get_batch_size()
 
-    # 학습 프로세스 시작
-    start_training(global_agent, data_path, n_processes, n_episodes, batch_size)
+    # TensorBoard 초기화
+    log_dir = "utils/Log/tensorboard_logs/sp500_training"
+    os.makedirs(log_dir, exist_ok=True)
+    writer = initialize_tensorboard(log_dir)
 
+    # 학습 프로세스 시작
+    start_training(global_agent, data_path, n_processes, n_episodes, batch_size, writer)
     # 학습된 모델 저장
     save_trained_model(global_agent, model_path)
+
+    # TensorBoard writer 닫기
+    # writer.close()
 
     log_manager.logger.info("Training process completed")
