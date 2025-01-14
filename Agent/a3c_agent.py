@@ -121,6 +121,9 @@ class A3CAgent:
 
         Args:
             batch (list): 여러 워커에서 수집한 배치 데이터 (states, actions, rewards, dones, next_states).
+        Returns:
+            policy_loss.item() (float): 정책 손실의 스칼라 값.
+            entropy.item() (float): 정책 엔트로피의 스칼라 값.
         """
         states, actions, rewards, dones, next_states = zip(*batch)
 
@@ -138,6 +141,7 @@ class A3CAgent:
         # 모델 예측 및 손실 계산
         log_probs = []
         values = []
+        entropies = []
 
         for i, state in enumerate(states):
             policy, value = self.model(state)
@@ -153,6 +157,7 @@ class A3CAgent:
             m = Categorical(policy)
             log_probs.append(m.log_prob(actions[i]))
             values.append(value)
+            entropies.append(m.entropy())  # 엔트로피 계산
 
             # m = Categorical(torch.softmax(policy, dim=-1))
             # log_probs.append(m.log_prob(actions[i]))
@@ -161,17 +166,23 @@ class A3CAgent:
         values = torch.stack(values).squeeze()
         returns = torch.tensor(returns, dtype=torch.float32)
         log_probs = torch.stack(log_probs)
+        entropies = torch.stack(entropies)
 
         # 손실 계산
         advantage = returns - values
         policy_loss = -(log_probs * advantage.detach()).mean()
         value_loss = advantage.pow(2).mean()
+        entropy = entropies.mean()
 
         # 모델 업데이트
         self.optimizer.zero_grad()
-        (policy_loss + value_loss).backward()
+        # 학습 초기 단계에서 에이전트가 탐험을 충분히 하도록 유도하고, 
+        # 너무 빨리 특정 행동에 수렴하지 않도록 하기 위해 엔트로피를 보너스로 사용
+        (policy_loss + value_loss - 0.01 * entropy).backward()
         self.optimizer.step()
         # log_manager.logger.debug("Model updated") 
+
+        return policy_loss.item(), entropy.item()
 
     def save_model(self, path):
         """

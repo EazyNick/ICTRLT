@@ -81,6 +81,9 @@ def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch
         # state = env._get_observation()  # 현재 상태 얻기
         episode_reward = 0  # 에피소드 동안 얻은 총 보상
         step_count = 0
+        episode_losses = []  # 에피소드 동안의 손실 기록
+        episode_entropies = []  # 에피소드 동안의 엔트로피 기록
+        
         while True:
             action, _ = local_agent.select_action(state)
             next_state, reward, done, _ = env.step(action)
@@ -94,6 +97,10 @@ def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch
 
             # 배치 크기만큼 데이터가 모이면 로컬 업데이트 수행
             if len(batch) >= batch_size:
+                # 로컬 에이전트 업데이트 및 손실 계산
+                loss, entropy = local_agent.update_batch(batch)
+                episode_losses.append(loss)
+                episode_entropies.append(entropy)
                 # 로컬 에이전트 업데이트
                 local_agent.update_batch(batch)
                 # 글로벌 에이전트로 동기화
@@ -105,15 +112,23 @@ def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch
             if done:
                 break
         
+        # 에피소드 기록
+        avg_loss = np.mean(episode_losses) if episode_losses else 0
+        avg_entropy = np.mean(episode_entropies) if episode_entropies else 0
+
         # 이 블록 안에 있는 코드는 다른 프로세스에서 동시에 실행되지 않도록 보장(lock)
         with global_ep_lock:
             global_ep.value += 1
             log_manager.logger.info(f"Episode {global_ep.value} completed with reward: {episode_reward}")
             # sync_local_to_global(global_agent, local_agent)
             # TensorBoard에 로그 추가
+            # TensorBoard에 로그 추가
             if writer:
                 writer.add_scalar(f'Process_{process_id}/Reward', episode_reward, global_ep.value)
                 writer.add_scalar(f'Process_{process_id}/Steps', step_count, global_ep.value)
+                writer.add_scalar(f'Process_{process_id}/Avg_Loss', avg_loss, global_ep.value)
+                writer.add_scalar(f'Process_{process_id}/Avg_Entropy', avg_entropy, global_ep.value)
+
             if global_ep.value % sync_interval == 0:
                 sync_local_to_global(global_agent, local_agent) # 로컬 -> 글로벌
         
