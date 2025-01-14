@@ -19,6 +19,9 @@ import numpy as np
 import torch
 import torch.multiprocessing as mp
 from torch.utils.tensorboard import SummaryWriter
+import os
+from datetime import datetime
+import queue 
 
 from Agent import A3CAgent, sync_local_to_global
 from env import StockTradingEnv
@@ -45,7 +48,7 @@ def set_seeds():
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(torch_seed)
 
-def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch_size=32, writer=None, process_id=0):
+def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, writer_queue, process_id=0, batch_size=32):
     """
     학습 작업자 함수
 
@@ -56,7 +59,7 @@ def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch
         global_ep (mp.Value): 글로벌 에피소드 카운터
         global_ep_lock (mp.Lock): 에피소드 카운터 잠금
         batch_size (int): 배치 크기
-        writer (SummaryWriter): TensorBoard writer 객체
+        writer_queue (SummaryWriter): Queue를 통해 각 워커 프로세스의 로깅 데이터를 수집
         process_id (int): 프로세스 ID (TensorBoard 로깅 구분용)
     """
     # set_seeds()
@@ -83,12 +86,14 @@ def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch
         step_count = 0
         episode_losses = []  # 에피소드 동안의 손실 기록
         episode_entropies = []  # 에피소드 동안의 엔트로피 기록
-        
+        actions_taken = []  # 액션 분포 추적
+
         while True:
-            action, _ = local_agent.select_action(state)
+            action, action_probs = local_agent.select_action(state)
             next_state, reward, done, _ = env.step(action)
         
             # 보상을 누적
+            actions_taken.append(action)
             episode_reward += reward
             step_count += 1
 
@@ -101,8 +106,6 @@ def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch
                 loss, entropy = local_agent.update_batch(batch)
                 episode_losses.append(loss)
                 episode_entropies.append(entropy)
-                # 로컬 에이전트 업데이트
-                local_agent.update_batch(batch)
                 # 글로벌 에이전트로 동기화
                 # sync_local_to_global(global_agent, local_agent) # 로컬 -> 글로벌
                 # local_agent.model.load_state_dict(global_agent.model.state_dict())  # 글로벌 -> 로컬 동기화 보장
@@ -115,6 +118,7 @@ def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch
         # 에피소드 기록
         avg_loss = np.mean(episode_losses) if episode_losses else 0
         avg_entropy = np.mean(episode_entropies) if episode_entropies else 0
+        action_distribution = np.bincount(actions_taken, minlength=env.action_space.n) / len(actions_taken)
 
         # 이 블록 안에 있는 코드는 다른 프로세스에서 동시에 실행되지 않도록 보장(lock)
         with global_ep_lock:
@@ -122,12 +126,17 @@ def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, batch
             log_manager.logger.info(f"Episode {global_ep.value} completed with reward: {episode_reward}")
             # sync_local_to_global(global_agent, local_agent)
             # TensorBoard에 로그 추가
-            # TensorBoard에 로그 추가
-            if writer:
-                writer.add_scalar(f'Process_{process_id}/Reward', episode_reward, global_ep.value)
-                writer.add_scalar(f'Process_{process_id}/Steps', step_count, global_ep.value)
-                writer.add_scalar(f'Process_{process_id}/Avg_Loss', avg_loss, global_ep.value)
-                writer.add_scalar(f'Process_{process_id}/Avg_Entropy', avg_entropy, global_ep.value)
+            current_ep = global_ep.value
+            
+            writer_queue.put({
+                'process_id': process_id,
+                'episode': current_ep,
+                'reward': episode_reward,
+                'steps': step_count,
+                'loss': avg_loss,
+                'entropy': avg_entropy,
+                'action_distribution': action_distribution
+            })
 
             if global_ep.value % sync_interval == 0:
                 sync_local_to_global(global_agent, local_agent) # 로컬 -> 글로벌
@@ -163,7 +172,7 @@ def initialize_environment_and_agent(data_path):
     return global_agent
 
 
-def start_training(global_agent, data_path, n_processes=4, n_episodes=8, batch_size=32, writer=None):
+def start_training(global_agent, data_path, n_processes=4, n_episodes=8, batch_size=32):
     """
     여러 프로세스를 사용하여 학습 프로세스를 시작합니다.
 
@@ -173,23 +182,44 @@ def start_training(global_agent, data_path, n_processes=4, n_episodes=8, batch_s
         n_processes (int): 학습에 사용할 프로세스 수.
         n_episodes (int): 학습할 총 에피소드 수.
         batch_size (int): 배치 크기.
-        writer (SummaryWriter): TensorBoard writer 객체.
     """
     global_ep = mp.Value('i', 0)
     global_ep_lock = mp.Lock()
+    writer_queue = mp.Queue()
+    stop_event = mp.Event()
+
+    # 현재 시간을 포함한 로그 디렉토리 생성
+    current_time = datetime.now().strftime('%Y%m%d-%H%M%S')
+    log_dir = os.path.join("utils/Log/tensorboard_logs", f"sp500_training_{current_time}")
+    os.makedirs(log_dir, exist_ok=True)
+
+    # 로깅 프로세스 시작 (글로벌 에이전트 전달)
+    logging_proc = mp.Process(
+        target=logging_process, 
+        args=(writer_queue, stop_event, log_dir, global_agent, data_path)
+    )
+    logging_proc.start()
 
     processes = []
     episodes_per_process = n_episodes // n_processes
     for process_num in range(n_processes):
+        # 올바른 순서
         p = mp.Process(
             target=worker,
-            args=(global_agent, data_path, episodes_per_process, global_ep, global_ep_lock, batch_size, writer, process_num)
+            args=(global_agent, data_path, episodes_per_process, global_ep, 
+                global_ep_lock, writer_queue, process_num, batch_size)
         )
         p.start()
         processes.append(p)
 
-    for p in processes:
-        p.join()
+    try:
+        for p in processes:
+            p.join()
+        stop_event.set()
+        logging_proc.join()
+    except Exception as e:
+        log_manager.logger.error(f"Error during process termination: {e}")
+
 
 def save_trained_model(global_agent, model_path):
     """
@@ -200,6 +230,100 @@ def save_trained_model(global_agent, model_path):
         model_path (str): 모델을 저장할 경로.
     """
     global_agent.save_model(model_path)
+
+def evaluate_global_agent(global_agent, env, n_episodes=5):
+    """
+    글로벌 에이전트의 성능을 평가
+    """
+    total_rewards = []
+    total_steps = []
+    action_counts = []
+    
+    for _ in range(n_episodes):
+        state = env.reset()
+        episode_reward = 0
+        steps = 0
+        actions = []
+        
+        while True:
+            action, action_probs = global_agent.select_action(state)
+            actions.append(action)
+            next_state, reward, done, _ = env.step(action)
+            
+            episode_reward += reward
+            steps += 1
+            state = next_state
+            
+            if done:
+                break
+        
+        total_rewards.append(episode_reward)
+        total_steps.append(steps)
+        action_counts.append(actions)
+    
+    # 평균 계산
+    avg_reward = np.mean(total_rewards)
+    avg_steps = np.mean(total_steps)
+    all_actions = np.concatenate(action_counts)
+    action_distribution = np.bincount(all_actions, minlength=env.action_space.n) / len(all_actions)
+    
+    return {
+        'reward': avg_reward,
+        'steps': avg_steps,
+        'action_distribution': action_distribution
+    }
+
+def logging_process(writer_queue, stop_event, log_dir, global_agent, data_path):
+    """
+    별도의 프로세스에서 TensorBoard 로깅을 처리하며 글로벌 에이전트도 평가
+    """
+    writer = SummaryWriter(log_dir)
+    
+    # 글로벌 에이전트 평가를 위한 환경 생성
+    df = pd.read_csv(data_path)
+    eval_env = StockTradingEnv(df)
+    
+    # 글로벌 에이전트 평가 주기 설정
+    eval_interval = 10  # 10 에피소드마다 글로벌 에이전트 평가
+    last_eval_episode = 0
+    writer.add_text('Hyperparameters', f"Processes: {n_processes}, Episodes: {n_episodes}, Batch Size: {batch_size}")
+
+    while not stop_event.is_set() or not writer_queue.empty():
+        try:
+            data = writer_queue.get(timeout=1.0)
+            current_episode = data['episode']
+            
+            # 로컬 에이전트 메트릭 로깅
+            writer.add_scalar(f'Local/Process_{data["process_id"]}/Reward', data['reward'], current_episode)
+            writer.add_scalar(f'Local/Process_{data["process_id"]}/Steps', data['steps'], current_episode)
+            writer.add_scalar(f'Local/Process_{data["process_id"]}/Loss', data['loss'], current_episode)
+            writer.add_scalar(f'Local/Process_{data["process_id"]}/Entropy', data['entropy'], current_episode)
+            
+            
+            # 로컬 액션 분포 로깅
+            for action, prob in enumerate(data['action_distribution']):
+                writer.add_scalar(f'Local/Process_{data["process_id"]}/Action_{action}_Probability', 
+                                prob, current_episode)
+            
+            # 글로벌 에이전트 주기적 평가
+            if current_episode - last_eval_episode >= eval_interval:
+                global_metrics = evaluate_global_agent(global_agent, eval_env)
+                
+                # 글로벌 에이전트 메트릭 로깅
+                writer.add_scalar('Global/Average_Reward', global_metrics['reward'], current_episode)
+                writer.add_scalar('Global/Average_Steps', global_metrics['steps'], current_episode)
+                
+                # 글로벌 에이전트 액션 분포 로깅
+                for action, prob in enumerate(global_metrics['action_distribution']):
+                    writer.add_scalar(f'Global/Action_{action}_Probability', prob, current_episode)
+                
+                last_eval_episode = current_episode
+            
+        except queue.Empty:
+            continue
+    
+    writer.close()
+
 
 # TensorBoard 로그 초기화
 def initialize_tensorboard(log_dir):
@@ -231,12 +355,18 @@ if __name__ == '__main__':
     batch_size = config.get_batch_size()
 
     # TensorBoard 초기화
-    log_dir = "utils/Log/tensorboard_logs/sp500_training"
-    os.makedirs(log_dir, exist_ok=True)
-    writer = initialize_tensorboard(log_dir)
+    # log_dir = "utils/Log/tensorboard_logs/sp500_training"
+    # os.makedirs(log_dir, exist_ok=True)
+    # writer = initialize_tensorboard(log_dir)
 
     # 학습 프로세스 시작
-    start_training(global_agent, data_path, n_processes, n_episodes, batch_size, writer)
+    start_training(
+        global_agent, 
+        data_path,
+        n_processes=config.get_n_processes(),
+        n_episodes=config.get_n_episodes(),
+        batch_size=config.get_batch_size()
+    )
     # 학습된 모델 저장
     save_trained_model(global_agent, model_path)
 
