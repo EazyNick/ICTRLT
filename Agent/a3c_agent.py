@@ -208,6 +208,7 @@ class A3CAgent:
 def sync_local_to_global(global_agent, local_agent):
     """
     로컬 에이전트의 기울기를 글로벌 에이전트로 동기화합니다.
+    동기화 후 다시 로컬 에이전트에 적용합니다.
 
     Args:
         global_agent (A3CAgent): 글로벌 에이전트
@@ -223,7 +224,8 @@ def sync_local_to_global(global_agent, local_agent):
     # 글로벌 모델 업데이트
     global_agent.optimizer.step()
     global_agent.optimizer.zero_grad()
+    log_manager.logger.info(f"로컬 -> 글로벌 모델 업데이트")
 
     # 로컬 모델을 글로벌 모델의 파라미터로 동기화
     local_agent.model.load_state_dict(global_agent.model.state_dict())
-    log_manager.logger.info(f"로컬 -> 글로벌 모델 동기화")
+    log_manager.logger.info(f"글로벌 -> 로컬 파라미터 동기화")

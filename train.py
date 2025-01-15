@@ -28,6 +28,8 @@ from env import StockTradingEnv
 from utils import log_manager
 from config import ConfigLoader
 
+# tensorboard --logdir=utils/Log/tensorboard_logs/ --port=6006
+
 def set_seeds():
     """
     모든 난수 생성기의 시드값을 각각 설정하여 일관된 결과를 생성합니다.
@@ -196,7 +198,7 @@ def start_training(global_agent, data_path, n_processes=4, n_episodes=8, batch_s
     # 로깅 프로세스 시작 (글로벌 에이전트 전달)
     logging_proc = mp.Process(
         target=logging_process, 
-        args=(writer_queue, stop_event, log_dir, global_agent, data_path)
+        args=(writer_queue, stop_event, log_dir, global_agent, data_path, n_processes, n_episodes, batch_size)
     )
     logging_proc.start()
 
@@ -273,7 +275,7 @@ def evaluate_global_agent(global_agent, env, n_episodes=5):
         'action_distribution': action_distribution
     }
 
-def logging_process(writer_queue, stop_event, log_dir, global_agent, data_path):
+def logging_process(writer_queue, stop_event, log_dir, global_agent, data_path, n_processes, n_episodes, batch_size):
     """
     별도의 프로세스에서 TensorBoard 로깅을 처리하며 글로벌 에이전트도 평가
     """
@@ -344,7 +346,7 @@ if __name__ == '__main__':
     set_seeds()
 
     data_path = 'data/data_csv/sp500_training_data.csv'
-    model_path = 'output/sp500_trading_model_9196.pth'
+    model_path = 'output/sp500_trading_model_128.pth'
 
     # 환경과 에이전트 초기화
     global_agent = initialize_environment_and_agent(data_path)

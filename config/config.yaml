@@ -16,8 +16,8 @@ model:
     dropout_rate: 0.2 # 드롭아웃 비율
 
 training:
-  n_processes: 6
-  n_episodes: 9196
+  n_processes: 8
+  n_episodes: 128
   batch_size: 16
 
 seeds:
