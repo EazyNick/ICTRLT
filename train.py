@@ -301,12 +301,6 @@ def logging_process(writer_queue, stop_event, log_dir, global_agent, data_path, 
             writer.add_scalar(f'Local/Process_{data["process_id"]}/Loss', data['loss'], current_episode)
             writer.add_scalar(f'Local/Process_{data["process_id"]}/Entropy', data['entropy'], current_episode)
             
-            
-            # 로컬 액션 분포 로깅
-            for action, prob in enumerate(data['action_distribution']):
-                writer.add_scalar(f'Local/Process_{data["process_id"]}/Action_{action}_Probability', 
-                                prob, current_episode)
-            
             # 글로벌 에이전트 주기적 평가
             if current_episode - last_eval_episode >= eval_interval:
                 global_metrics = evaluate_global_agent(global_agent, eval_env)
@@ -314,10 +308,6 @@ def logging_process(writer_queue, stop_event, log_dir, global_agent, data_path, 
                 # 글로벌 에이전트 메트릭 로깅
                 writer.add_scalar('Global/Average_Reward', global_metrics['reward'], current_episode)
                 writer.add_scalar('Global/Average_Steps', global_metrics['steps'], current_episode)
-                
-                # 글로벌 에이전트 액션 분포 로깅
-                for action, prob in enumerate(global_metrics['action_distribution']):
-                    writer.add_scalar(f'Global/Action_{action}_Probability', prob, current_episode)
                 
                 last_eval_episode = current_episode
             
