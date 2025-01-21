@@ -109,7 +109,7 @@ def worker(global_agent, data_path, n_episodes, global_ep, global_ep_lock, write
                 episode_losses.append(loss)
                 episode_entropies.append(entropy)
                 # 글로벌 에이전트로 동기화
-                # sync_local_to_global(global_agent, local_agent) # 로컬 -> 글로벌
+                sync_local_to_global(global_agent, local_agent) # 로컬 -> 글로벌
                 # local_agent.model.load_state_dict(global_agent.model.state_dict())  # 글로벌 -> 로컬 동기화 보장
                 batch = []  # 배치 초기화
 
@@ -336,7 +336,7 @@ if __name__ == '__main__':
     set_seeds()
 
     data_path = 'data/data_csv/sp500_training_data.csv'
-    model_path = 'output/sp500_trading_model_128.pth'
+    model_path = 'output/sp500_trading_model_1024.pth'
 
     # 환경과 에이전트 초기화
     global_agent = initialize_environment_and_agent(data_path)
